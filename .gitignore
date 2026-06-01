@@ -1,0 +1,7 @@
+# Mirror recipes work in mktemp dirs; nothing large should land here.
+# Downloaded CSVs / zips / merged trees are transient.
+*.csv.gz
+*.zip
+/tree/
+/work/
+.DS_Store
