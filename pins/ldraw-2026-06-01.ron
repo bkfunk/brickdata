@@ -1,0 +1,11 @@
+// blockstar-data LDraw mirror pin. Copy to main repo:
+//   external-data/ldraw/ldraw-snapshot.ron
+(
+  mirror_tag: "ldraw-2026-06-01",
+  snapshot_date: "2026-06-01",
+  asset_url: "https://github.com/bkfunk/blockstar-data/releases/download/ldraw-2026-06-01/ldraw-merged.zip",
+  asset_sha256: "3d19cb4b902fc3809d5da4f213423636f26a3ab1530d060b5398f3b55f6e3663",
+  manifest_url: "https://github.com/bkfunk/blockstar-data/releases/download/ldraw-2026-06-01/manifest.tsv",
+  manifest_sha256: "181a94f42312949293bfc86e9134a47d58f6759efc15100b10c39703e7feafab",
+  file_count: 36357,
+)

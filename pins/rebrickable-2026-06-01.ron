@@ -1,0 +1,16 @@
+// blockstar-data Rebrickable mirror pin. Copy to main repo:
+//   external-data/rebrickable/csv-snapshot.ron
+(
+  mirror_tag: "rebrickable-2026-06-01",
+  snapshot_date: "2026-06-01",
+  files: {
+    "parts.csv.gz": (sha256: "8998c8ee3bd5433a88e5ead40ff8d7822c199a49d9fd15e44b3201feea67cc44", bytes: 1033939, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/parts.csv.gz"),
+    "part_categories.csv.gz": (sha256: "00389ef1d16d29390a0961ada05f135fe45c294549581a7f3bfd9535333ae6f1", bytes: 858, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/part_categories.csv.gz"),
+    "part_relationships.csv.gz": (sha256: "f64366e59cbe0982175fe5b8f43af82b475e8b68141d99432731a111632a6a03", bytes: 190618, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/part_relationships.csv.gz"),
+    "elements.csv.gz": (sha256: "24467d0ae751007649ec081d563f4c4a2fa5d652200d37dc84d2d2bb4db462e2", bytes: 1101620, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/elements.csv.gz"),
+    "themes.csv.gz": (sha256: "5ed2ad73e58107496dd707d7b596872833df99661b7a613a8003ef75b804da50", bytes: 4490, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/themes.csv.gz"),
+    "sets.csv.gz": (sha256: "105bec20881c3c20a3de63d96da060fe65e9f79ecfdbffc45d22148517bcb84f", bytes: 493642, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/sets.csv.gz"),
+    "inventories.csv.gz": (sha256: "0ac3b81b12cfac48cea36607dc9a2c3273789d70081cfeae2c270568d7cf40df", bytes: 253934, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/inventories.csv.gz"),
+    "inventory_parts.csv.gz": (sha256: "5ccbb7826ad3e98d49a111408cb1b25778f76d3351b128088b863bd3449043ab", bytes: 13682428, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/inventory_parts.csv.gz"),
+  },
+)

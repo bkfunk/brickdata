@@ -169,20 +169,11 @@ verify pin:
     source "$root/lib/manifest.sh"
     [ -f "{{pin}}" ] || die "no such pin: {{pin}}"
     work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
-    # Pull every mirror_url / asset_url out of the pin and check its sha256.
+    # Dispatch on pin shape: an ldraw pin has a manifest_sha256 field; a
+    # rebrickable pin has a files map with per-file mirror_url + sha256.
     # (Greps the RON rather than parsing it — the pins are flat and shell-only.)
-    fail=0
-    # Rebrickable-style: lines with mirror_url + preceding sha256 on same line.
-    grep -oE '\(sha256: "[0-9a-f]+", bytes: [0-9]+, mirror_url: "[^"]+"\)' "{{pin}}" | while read -r line; do
-        sum=$(sed -E 's/.*sha256: "([0-9a-f]+)".*/\1/' <<<"$line")
-        url=$(sed -E 's/.*mirror_url: "([^"]+)".*/\1/' <<<"$line")
-        f="$work/$(basename "$url")"
-        download "$url" "$f"
-        got="$(sha256_file "$f")"
-        [ "$got" = "$sum" ] && log "OK   $(basename "$url")" || { log "FAIL $(basename "$url"): $got != $sum"; exit 1; }
-    done
-    # LDraw-style: asset_url + asset_sha256, then manifest check.
     if grep -q 'manifest_sha256' "{{pin}}"; then
+        # LDraw-style: zip + manifest hashes, then re-hash the merged tree.
         aurl=$(grep -oE 'asset_url: "[^"]+"' "{{pin}}" | head -1 | sed -E 's/asset_url: "([^"]+)"/\1/')
         asum=$(grep -oE 'asset_sha256: "[0-9a-f]+"' "{{pin}}" | sed -E 's/.*"([0-9a-f]+)"/\1/')
         murl=$(grep -oE 'manifest_url: "[^"]+"' "{{pin}}" | sed -E 's/manifest_url: "([^"]+)"/\1/')
@@ -194,5 +185,20 @@ verify pin:
         extract_into "$work/tree.zip" "$work/tree"
         verify_manifest "$work/tree" "$work/manifest.tsv"
         log "OK   ldraw merged tree matches manifest"
+    else
+        # Rebrickable-style: one (sha256, bytes, mirror_url) tuple per file.
+        # Read matches into an array first so a per-file failure can exit the
+        # recipe (a `grep | while` subshell could not).
+        mapfile -t lines < <(grep -oE '\(sha256: "[0-9a-f]+", bytes: [0-9]+, mirror_url: "[^"]+"\)' "{{pin}}")
+        [ "${#lines[@]}" -gt 0 ] || die "no recognizable file entries in {{pin}}"
+        for line in "${lines[@]}"; do
+            sum=$(sed -E 's/.*sha256: "([0-9a-f]+)".*/\1/' <<<"$line")
+            url=$(sed -E 's/.*mirror_url: "([^"]+)".*/\1/' <<<"$line")
+            f="$work/$(basename "$url")"
+            download "$url" "$f"
+            got="$(sha256_file "$f")"
+            [ "$got" = "$sum" ] || die "FAIL $(basename "$url"): $got != $sum"
+            log "OK   $(basename "$url")"
+        done
     fi
     echo "verify: all assets match {{pin}}" >&2
