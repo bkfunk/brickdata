@@ -3,7 +3,7 @@
 (
   mirror_tag: "rebrickable-2026-06-01",
   snapshot_date: "2026-06-01",
-  files: {
+  file_fingerprints: {
     "parts.csv.gz": (sha256: "8998c8ee3bd5433a88e5ead40ff8d7822c199a49d9fd15e44b3201feea67cc44", bytes: 1033939, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/parts.csv.gz"),
     "part_categories.csv.gz": (sha256: "00389ef1d16d29390a0961ada05f135fe45c294549581a7f3bfd9535333ae6f1", bytes: 858, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/part_categories.csv.gz"),
     "part_relationships.csv.gz": (sha256: "f64366e59cbe0982175fe5b8f43af82b475e8b68141d99432731a111632a6a03", bytes: 190618, mirror_url: "https://github.com/bkfunk/blockstar-data/releases/download/rebrickable-2026-06-01/part_relationships.csv.gz"),

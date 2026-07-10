@@ -52,7 +52,7 @@ mirror-rebrickable:
         echo "("
         echo "  mirror_tag: \"$tag\","
         echo "  snapshot_date: \"$(today_utc)\","
-        echo "  files: {"
+        echo "  file_fingerprints: {"
         for e in "${entries[@]}"; do
             IFS='|' read -r name sum bytes <<< "$e"
             url="$(asset_url "$tag" "$name")"
