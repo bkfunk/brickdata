@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for the blockstar-data mirror recipes.
+# Shared helpers for the brickdata mirror recipes.
 #
 # Pure shell — depends only on curl, sha256sum (or shasum), gh, unzip, and
 # coreutils. No Rust, no main-checkout. Source this from a recipe:
@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-GH_REPO="${GH_REPO:-bkfunk/blockstar-data}"
+GH_REPO="${GH_REPO:-bkfunk/brickdata}"
 
 log() { printf '  %s\n' "$*" >&2; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
