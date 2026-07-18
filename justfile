@@ -1,6 +1,6 @@
-# blockstar-data — mirrors Blockstar's external data sources to GitHub Release
-# assets and hosts the built catalog outputs. Pure shell + gh + sha256sum; no
-# Rust toolchain required. Run `just --list`.
+# brickdata — archives upstream brick-ecosystem data to GitHub Release assets
+# and hosts built catalog outputs. Pure shell + gh + sha256sum; no Rust
+# toolchain required. Run `just --list`.
 #
 # Why this repo exists: Rebrickable's CDN and the LDraw library are
 # non-archival (latest-only), so pinning upstream hashes does NOT make a build
@@ -15,7 +15,7 @@
 #   catalog-YYYY-MM-DD       built catalog.sqlite (output, from main repo)
 
 # Override to point recipes at a fork/test repo.
-export GH_REPO := env_var_or_default("GH_REPO", "bkfunk/blockstar-data")
+export GH_REPO := env_var_or_default("GH_REPO", "bkfunk/brickdata")
 
 [private]
 default:
@@ -47,7 +47,7 @@ mirror-rebrickable:
     # Emit the pin (RON) the main repo's fetch consumes.
     pin="$root/pins/$tag.ron"
     {
-        echo "// blockstar-data Rebrickable mirror pin. Copy to main repo:"
+        echo "// brickdata Rebrickable mirror pin. Blockstar consumers copy to:"
         echo "//   external-data/rebrickable/csv-snapshot.ron"
         echo "("
         echo "  mirror_tag: \"$tag\","
@@ -102,7 +102,7 @@ mirror-ldraw:
     upload_asset "$tag" "$man"
     pin="$root/pins/$tag.ron"
     {
-        echo "// blockstar-data LDraw mirror pin. Copy to main repo:"
+        echo "// brickdata LDraw mirror pin. Blockstar consumers copy to:"
         echo "//   external-data/ldraw/ldraw-snapshot.ron"
         echo "("
         echo "  mirror_tag: \"$tag\","
@@ -130,11 +130,11 @@ publish-catalog path:
     tag="catalog-$(today_utc)"
     sum="$(sha256_file "{{path}}")"; bytes="$(wc -c < "{{path}}" | tr -d ' ')"
     ensure_release "$tag" "Built catalog.sqlite ($tag)" \
-        "Prebuilt Blockstar metadata catalog. Query with sqlite3/Datasette, no build required."
+        "Prebuilt brick-catalog metadata DB. Query with sqlite3/Datasette, no build required."
     upload_asset "$tag" "{{path}}"
     pin="$root/pins/$tag.ron"
     {
-        echo "// blockstar-data built-catalog pin."
+        echo "// brickdata built-catalog pin."
         echo "("
         echo "  mirror_tag: \"$tag\","
         echo "  asset_url: \"$(asset_url "$tag" "$(basename "{{path}}")")\","
@@ -154,7 +154,7 @@ publish-cache path:
     [ -f "{{path}}" ] || die "no such file: {{path}}"
     tag="cache-$(today_utc)"
     sum="$(sha256_file "{{path}}")"
-    ensure_release "$tag" "Built geometry cache ($tag)" "Prebuilt Blockstar geometry cache."
+    ensure_release "$tag" "Built geometry cache ($tag)" "Prebuilt geometry cache."
     upload_asset "$tag" "{{path}}"
     echo "Published {{path}} -> $tag (sha256 $sum)" >&2
 
