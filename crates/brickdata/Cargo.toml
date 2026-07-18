@@ -1,0 +1,29 @@
+[package]
+name = "brickdata"
+description = "Typed consumer API for brickdata snapshots: pin parsing, verified fetch with local cache, archive helpers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["lego", "ldraw", "rebrickable", "dataset"]
+categories = ["caching", "parser-implementations"]
+# Flip when the consumer API is complete enough to publish (typed rows for
+# cleaned tables are still blocked on the catalog-builder migration, #3/#4).
+publish = false
+
+[features]
+default = ["http"]
+# Built-in HTTP transport (ureq). Disable to supply your own `Transport`.
+http = ["dep:ureq"]
+
+[dependencies]
+serde.workspace = true
+ron.workspace = true
+sha2.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+flate2.workspace = true
+zip.workspace = true
+tempfile.workspace = true
+ureq = { workspace = true, optional = true }

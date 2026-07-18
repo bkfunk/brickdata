@@ -45,6 +45,21 @@ Releases are **immutable** once cut — a new snapshot is a new dated release.
 Each release has a matching pin file under [`pins/`](pins/) recording asset
 URLs + sha256 hashes; consumers vendor the pin and fetch/verify against it.
 
+## Consuming snapshots from Rust
+
+The [`brickdata` crate](crates/brickdata/) is the consumer-side API: it
+parses the pin files, downloads assets with mandatory sha256/size
+verification into a local content-addressed cache (a verified cache hit does
+no network I/O), and provides gunzip/unzip helpers for the asset encodings.
+Verification failures are hard errors. Typed row structs for the cleaned
+catalog tables will follow the catalog-builder migration (#3, #4); the crate
+is unpublished until that API settles.
+
+```rust
+let pin = RebrickablePin::from_path("pins/rebrickable-2026-06-01.ron")?;
+let tables = Fetcher::new(cache_dir).fetch_rebrickable(&pin)?;
+```
+
 ## Refreshing the data (maintainers)
 
 Requires only `gh` (authenticated), `just`, `curl`, `unzip`, `zip`, and
@@ -66,6 +81,10 @@ the relevant build tooling, then published here via
 `just publish-catalog <path>`.
 
 ## Licensing
+
+Code in this repo (the `brickdata` crate, the `just` recipes) is licensed
+MIT OR Apache-2.0 ([`LICENSE-MIT`](LICENSE-MIT) /
+[`LICENSE-APACHE`](LICENSE-APACHE)), matching studkit.
 
 Mirrored data carries its upstream license — see [`LICENSES/`](LICENSES/):
 
