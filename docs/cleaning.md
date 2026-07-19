@@ -77,6 +77,10 @@ through the same membership-gated ladder as the relationships slice (NULL
 when the part isn't in the scanned library). External ids are second-hand
 via the Rebrickable API — not authoritative (see `LICENSES/REBRICKABLE.md`).
 
+Schema v3 adds the spine that story rests on: a resolved `design_id`
+column on `rb_parts` itself, covering every Rebrickable part (not just
+those with external ids), same ladder, NULL when unresolvable.
+
 ## Determinism
 
 Identical pins produce byte-identical `catalog.sqlite` (integration test

@@ -222,7 +222,7 @@ fn build_creates_db_with_meta_rows() {
     );
 
     let meta = read_meta(&out);
-    assert_eq!(meta.get("schema_version").map(String::as_str), Some("2"));
+    assert_eq!(meta.get("schema_version").map(String::as_str), Some("3"));
     assert_eq!(
         meta.get("snapshot_date").map(String::as_str),
         Some("2026-05-27")
@@ -999,6 +999,23 @@ fn build_writes_colors_and_external_id_tables() {
         meta.get("rb_part_external_id_resolved").map(String::as_str),
         Some("2")
     );
+
+    // Schema v3: the part_num → design spine on rb_parts. 3001 resolves via
+    // the pin; 3005 has no pin entry but is in the fixture library (literal
+    // fallback); 3626 is pin-mapped but not in the library → NULL.
+    let spine = |part: &str| -> Option<String> {
+        conn.query_row(
+            "SELECT design_id FROM rb_parts WHERE part_id_rb = ?1",
+            rusqlite::params![part],
+            |r| r.get::<_, Option<String>>(0),
+        )
+        .expect("rb_parts row exists")
+    };
+    assert_eq!(spine("3001").as_deref(), Some("3001"));
+    assert_eq!(spine("3005").as_deref(), Some("3005"), "literal fallback");
+    assert_eq!(spine("4073").as_deref(), Some("6141"), "tombstone chase");
+    assert_eq!(spine("3626"), None, "pin-mapped but not in the library");
+    assert_eq!(meta.get("rb_parts_resolved").map(String::as_str), Some("3"));
 
     let _ = std::fs::remove_dir_all(&root);
 }
