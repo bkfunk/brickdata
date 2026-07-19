@@ -46,8 +46,9 @@ mod xref;
 
 /// Bumped whenever the on-disk schema changes in a way the runtime must
 /// notice. Stamped into `meta` so a mismatched DB is detectable at load.
-/// v2 (#12): `colors` + `rb_part_external_id` tables.
-const SCHEMA_VERSION: u32 = 2;
+/// v2 (#12): `colors` + `rb_part_external_id` tables. v3: resolved
+/// `design_id` column on `rb_parts` (the part_num → LDraw spine).
+const SCHEMA_VERSION: u32 = 3;
 
 /// The Rebrickable tables a snapshot pin carries (as `<name>.csv.gz`).
 /// `colors.csv` is deliberately absent — color names come from the committed
@@ -222,6 +223,9 @@ fn build_into(
     stamp(&conn, "colors_count", &color_rows.to_string())?;
     let ext = xref::build_external_ids(&conn, &rb_cross_ref_pin, &resolver)?;
     stamp_all(&conn, &ext.meta_rows())?;
+    // Schema v3: the part_num → LDraw design spine on rb_parts itself.
+    let spine = xref::resolve_rb_parts(&conn, &resolver)?;
+    stamp(&conn, "rb_parts_resolved", &spine.to_string())?;
 
     // Finalize (#73): the `part` view + FTS index, then ANALYZE/VACUUM, then
     // `build_status = 'complete'` as the very last write so an interrupted

@@ -126,7 +126,7 @@ build-catalog rb_pin="pins/rebrickable-2026-06-01.ron" ldraw_pin="pins/ldraw-202
 
 # Publish a built catalog.sqlite (produced by `just build-catalog`) as a
 # release asset.
-publish-catalog path:
+publish-catalog path tag="":
     #!/usr/bin/env bash
     set -euo pipefail
     # Uploads to a catalog-<today> release and pins its sha256 in
@@ -135,7 +135,9 @@ publish-catalog path:
     root="{{justfile_directory()}}"
     source "$root/lib/common.sh"
     [ -f "{{path}}" ] || die "no such file: {{path}}"
-    tag="catalog-$(today_utc)"
+    # An explicit tag argument allows a same-day re-cut (e.g. a schema bump)
+    # without touching the earlier, immutable release.
+    tag="{{tag}}"; [ -n "$tag" ] || tag="catalog-$(today_utc)"
     sum="$(sha256_file "{{path}}")"; bytes="$(wc -c < "{{path}}" | tr -d ' ')"
     ensure_release "$tag" "Built catalog.sqlite ($tag)" \
         "Prebuilt brick-catalog metadata DB. Query with sqlite3/Datasette, no build required."

@@ -59,6 +59,39 @@ pub(crate) fn build_colors(conn: &Connection) -> Result<usize> {
     Ok(rows)
 }
 
+/// Add the resolved LDraw `design_id` column to `rb_parts` — the
+/// part_num → design spine of the cross-reference story. External-id rows
+/// carry a design only for parts that *have* external ids; this column
+/// covers every Rebrickable part, through the same membership-gated ladder
+/// (NULL when unresolvable). Runs after the resolver exists, so it can't be
+/// part of the raw `TableSpec` ingest.
+pub(crate) fn resolve_rb_parts(conn: &Connection, resolver: &PartResolver) -> Result<usize> {
+    conn.execute("ALTER TABLE rb_parts ADD COLUMN design_id TEXT", [])
+        .context("add rb_parts.design_id")?;
+    conn.execute(
+        "CREATE INDEX rb_parts_design_id ON rb_parts (design_id)",
+        [],
+    )
+    .context("index rb_parts.design_id")?;
+
+    let part_nums: Vec<String> = conn
+        .prepare("SELECT part_id_rb FROM rb_parts")?
+        .query_map([], |r| r.get(0))?
+        .collect::<rusqlite::Result<_>>()
+        .context("read rb_parts part ids")?;
+    let mut update = conn.prepare("UPDATE rb_parts SET design_id = ?2 WHERE part_id_rb = ?1")?;
+    let mut resolved = 0usize;
+    for part_num in &part_nums {
+        if let Some(r) = resolver.resolve_in_catalog(part_num) {
+            update
+                .execute(rusqlite::params![part_num, r.design_id])
+                .with_context(|| format!("set design_id for {part_num}"))?;
+            resolved += 1;
+        }
+    }
+    Ok(resolved)
+}
+
 /// Counters for the external-id ingest, stamped into `meta` like the other
 /// slices' stats.
 pub(crate) struct ExternalIdStats {
