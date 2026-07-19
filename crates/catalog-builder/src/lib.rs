@@ -4,6 +4,7 @@
 
 pub mod build;
 pub mod core;
+pub mod fetch;
 mod ldraw_part;
 pub mod refresh_colors;
 pub mod refresh_parts;
