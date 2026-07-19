@@ -1,0 +1,33 @@
+[package]
+name = "brickdata-catalog-builder"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Build-time tool: produces catalog.sqlite from pinned Rebrickable + LDraw snapshots."
+
+[[bin]]
+name = "catalog-builder"
+path = "src/main.rs"
+
+[dependencies]
+brickdata = { path = "../brickdata", features = ["http"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled"] }
+csv = { workspace = true }
+flate2 = { workspace = true }
+ureq = { workspace = true, features = ["json"] }
+sha2 = { workspace = true }
+ron = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
