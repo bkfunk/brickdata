@@ -52,12 +52,38 @@ parses the pin files, downloads assets with mandatory sha256/size
 verification into a local content-addressed cache (a verified cache hit does
 no network I/O), and provides gunzip/unzip helpers for the asset encodings.
 Verification failures are hard errors. Typed row structs for the cleaned
-catalog tables will follow the catalog-builder migration (#3, #4); the crate
-is unpublished until that API settles.
+catalog tables are next (#4); the crate is unpublished until that API
+settles.
 
 ```rust
 let pin = RebrickablePin::from_path("pins/rebrickable-2026-06-01.ron")?;
 let tables = Fetcher::new(cache_dir).fetch_rebrickable(&pin)?;
+```
+
+## Building the catalog
+
+The catalog builder (`crates/catalog-builder`, migrated from Blockstar in
+#3) parses and cleans the pinned snapshots into `catalog.sqlite` — see
+[`docs/cleaning.md`](docs/cleaning.md) for the cleaning/reconciliation
+rules, which are the package's main added value.
+
+```sh
+just build-catalog          # pins in → work/catalog.sqlite out (reproducible)
+just publish-catalog work/catalog.sqlite   # cut catalog-<today> + pin
+```
+
+`build-catalog` needs only the committed pins and network access to this
+repo's release assets: no Blockstar checkout, no API keys. Identical pins
+produce a byte-identical DB. The cleaned Rust-friendly inputs it consumes
+(`data/rebrickable/part_crossrefs.ron`, the compiled-in color reference)
+are committed and versioned here.
+
+The two `refresh-*` subcommands of `catalog-builder` (color names, part
+cross-refs) hit the authenticated Rebrickable API. They are maintainer-only
+and rare — never part of the routine build and never run in CI:
+
+```sh
+cargo run --release -p brickdata-catalog-builder -- refresh-part-mappings --dry-run
 ```
 
 ## Refreshing the data (maintainers)
@@ -72,13 +98,7 @@ just verify pins/rebrickable-<today>.ron   # prove a clone can reproduce it
 ```
 
 Each `mirror-*` recipe writes a pin file under `pins/`. Consumers copy the pin
-into their own repo to point their build at the new snapshot — e.g. Blockstar
-vendors them as `external-data/rebrickable/csv-snapshot.ron` and
-`external-data/ldraw/ldraw-snapshot.ron`.
-
-Built outputs (like `catalog.sqlite`) are produced by consumer repos that have
-the relevant build tooling, then published here via
-`just publish-catalog <path>`.
+into their own repo to point their build at the new snapshot.
 
 ## Licensing
 

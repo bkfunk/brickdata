@@ -1,6 +1,7 @@
 # brickdata — archives upstream brick-ecosystem data to GitHub Release assets
-# and hosts built catalog outputs. Pure shell + gh + sha256sum; no Rust
-# toolchain required. Run `just --list`.
+# and builds + hosts the catalog outputs. Mirror/publish recipes are pure
+# shell + gh + sha256sum; `build-catalog` needs the Rust toolchain (the
+# catalog builder lives in crates/catalog-builder, issue #3). Run `just --list`.
 #
 # Why this repo exists: Rebrickable's CDN and the LDraw library are
 # non-archival (latest-only), so pinning upstream hashes does NOT make a build
@@ -12,7 +13,7 @@
 # Releases:
 #   rebrickable-YYYY-MM-DD   8 bulk CSVs (inputs)
 #   ldraw-YYYY-MM-DD         merged-tree zip + content manifest (input)
-#   catalog-YYYY-MM-DD       built catalog.sqlite (output, from main repo)
+#   catalog-YYYY-MM-DD       built catalog.sqlite (output, `just build-catalog`)
 
 # Override to point recipes at a fork/test repo.
 export GH_REPO := env_var_or_default("GH_REPO", "bkfunk/brickdata")
@@ -117,13 +118,20 @@ mirror-ldraw:
     echo "Wrote $pin" >&2
     echo "Release: https://github.com/$GH_REPO/releases/tag/$tag" >&2
 
-# Publish a built catalog.sqlite (produced by the MAIN repo) as a release asset.
+# Build catalog.sqlite from the committed pins (reproducible; no Blockstar
+# checkout involved — see docs/cleaning.md for what the build cleans/derives).
+build-catalog rb_pin="pins/rebrickable-2026-06-01.ron" ldraw_pin="pins/ldraw-2026-06-01.ron" out="work/catalog.sqlite":
+    cargo run --release -p brickdata-catalog-builder -- build \
+      --pin {{rb_pin}} --ldraw-pin {{ldraw_pin}} --out {{out}}
+
+# Publish a built catalog.sqlite (produced by `just build-catalog`) as a
+# release asset.
 publish-catalog path:
     #!/usr/bin/env bash
     set -euo pipefail
     # Uploads to a catalog-<today> release and pins its sha256 in
-    # pins/catalog-<today>.ron. The main repo's `publish-catalog` recipe
-    # shells out to this (only the main repo can build the artifact).
+    # pins/catalog-<today>.ron. The artifact is built HERE (`just
+    # build-catalog`); the Blockstar main repo is a pure consumer.
     root="{{justfile_directory()}}"
     source "$root/lib/common.sh"
     [ -f "{{path}}" ] || die "no such file: {{path}}"
