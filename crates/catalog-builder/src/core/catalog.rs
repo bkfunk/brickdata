@@ -36,7 +36,7 @@ pub struct PartEntry {
     /// Part description / display name, e.g. `"Brick 2 x 4"`.
     pub name: String,
     /// The classified leaf subcategory. Its parent
-    /// [`Category`](crate::parts::Category) is reachable via
+    /// [`Category`](crate::core::Category) is reachable via
     /// [`Subcategory::category`].
     pub subcategory: Subcategory,
     /// Stud dimensions parsed from the name (e.g. `[2, 4]`); empty when
@@ -381,7 +381,7 @@ fn read_header(path: &Path) -> Result<Header, CoreError> {
 /// Collapse whitespace runs to single spaces. LDraw descriptions pad
 /// dimensions for column alignment (`"Brick  2 x  4"`); entry names are
 /// stored collapsed so display and search (which relies on this
-/// invariant — see [`search`](crate::parts::search)) never see the
+/// invariant — see `search`) never see the
 /// artifact.
 pub(crate) fn collapse_whitespace(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")

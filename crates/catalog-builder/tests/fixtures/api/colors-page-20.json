@@ -1,0 +1,278 @@
+{
+  "count": 275,
+  "next": "https://rebrickable.com/api/v3/lego/colors/?page=2&page_size=20",
+  "previous": null,
+  "results": [
+    {
+      "id": -1,
+      "name": "[Unknown]",
+      "rgb": "0033B2",
+      "is_trans": false,
+      "external_ids": {
+        "BrickOwl": {
+          "ext_ids": [0, 28, 29, 30, 31, 32, 33, 34, 60, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 156, 157, 160, 162, 163, 169],
+          "ext_descrs": [["Not Applicable"], ["Modulex Medium Stone Gray"], ["Modulex Charcoal Gray"], ["Modulex Orange"], ["Modulex Ochre Yellow"], ["Modulex Olive Green"], ["Modulex Pastel Green"], ["Modulex Tile Blue"], ["Fabuland Orange"], ["Modulex Aqua Green"], ["Modulex Black"], ["Modulex Brown"], ["Modulex Buff"], ["Modulex Clear"], ["Modulex Lemon"], ["Modulex Light Gray"], ["Modulex Light Orange"], ["Modulex Light Yellow"], ["Modulex Medium Blue"], ["Modulex Pastel Blue"], ["Modulex Pink"], ["Modulex Pink Red"], ["Modulex Red"], ["Modulex Teal Blue"], ["Modulex Terracotta"], ["Modulex Tile Brown"], ["Modulex Tile Gray"], ["Modulex Violet"], ["Modulex White"], ["Warm Yellowish Orange"], ["Medium Yellowish Orange"], ["Dark Nougat"], ["Transparent Fire Yellow"], ["Transparent Light Royal Blue"], ["Curry"]]
+        },
+        "LEGO": {
+          "ext_ids": [125, 158],
+          "ext_descrs": [["Light Orange"], ["Tr. Flu. Red"]]
+        },
+        "Peeron": {
+          "ext_ids": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+          "ext_descrs": [["blackgoldglitter"], ["curry"], ["dknougat"], ["ffred"], ["ffyellow"], ["fabulime"], ["fabuorange"], ["metalliccopper"], ["metallicwhite"], ["neonblue"], ["pearlgreen"], ["pearlescentpink"], ["redpink"], ["trltgreen"], ["trsalmon"]]
+        },
+        "LDraw": {
+          "ext_ids": [16, 24, 65, 66, 67, 273, 324, 375, 406, 449, 490, 493, 494, 495, 496, 504, 511],
+          "ext_descrs": [["Main_Colour"], ["Edge_Colour"], ["Rubber_Yellow"], ["Rubber_Trans_Yellow"], ["Rubber_Trans_Clear"], ["Rubber_Blue"], ["Rubber_Red"], ["Rubber_Light_Gray"], ["Rubber_Dark_Blue"], ["Rubber_Purple"], ["Rubber_Lime"], ["Magnet"], ["Electric_Contact_Alloy"], ["Electric_Contact_Copper"], ["Rubber_Light_Bluish_Gray"], ["Rubber_Flat_Silver"], ["Rubber_White"]]
+        }
+      }
+    },
+    {
+      "id": 0,
+      "name": "Black",
+      "rgb": "05131D",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [11], "ext_descrs": [["Black"]]},
+        "BrickOwl": {"ext_ids": [38], "ext_descrs": [["Black"]]},
+        "LEGO": {"ext_ids": [26, 342], "ext_descrs": [["Black", "BLACK"], ["CONDUCT. BLACK"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["black"]]},
+        "LDraw": {"ext_ids": [0, 256], "ext_descrs": [["Black"], ["Rubber_Black"]]}
+      }
+    },
+    {
+      "id": 1,
+      "name": "Blue",
+      "rgb": "0055BF",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [7], "ext_descrs": [["Blue"]]},
+        "BrickOwl": {"ext_ids": [39], "ext_descrs": [["Blue"]]},
+        "LEGO": {"ext_ids": [23], "ext_descrs": [["Bright Blue", "BR.BLUE"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["blue"]]},
+        "LDraw": {"ext_ids": [1], "ext_descrs": [["Blue"]]}
+      }
+    },
+    {
+      "id": 2,
+      "name": "Green",
+      "rgb": "237841",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [6], "ext_descrs": [["Green"]]},
+        "BrickOwl": {"ext_ids": [61], "ext_descrs": [["Green"]]},
+        "LEGO": {"ext_ids": [28], "ext_descrs": [["Dark green", "DK.GREEN"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["green"]]},
+        "LDraw": {"ext_ids": [2], "ext_descrs": [["Green"]]}
+      }
+    },
+    {
+      "id": 3,
+      "name": "Dark Turquoise",
+      "rgb": "008F9B",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [39], "ext_descrs": [["Dark Turquoise"]]},
+        "BrickOwl": {"ext_ids": [58], "ext_descrs": [["Dark Turquoise"]]},
+        "LEGO": {"ext_ids": [107], "ext_descrs": [["Bright bluish green", "BR.BLUEGREEN"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["teal"]]},
+        "LDraw": {"ext_ids": [3], "ext_descrs": [["Dark_Turquoise"]]}
+      }
+    },
+    {
+      "id": 4,
+      "name": "Red",
+      "rgb": "C91A09",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [5], "ext_descrs": [["Red"]]},
+        "BrickOwl": {"ext_ids": [81], "ext_descrs": [["Red"]]},
+        "LEGO": {"ext_ids": [21], "ext_descrs": [["Bright red", "BR.RED"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["red"]]},
+        "LDraw": {"ext_ids": [4], "ext_descrs": [["Red"]]}
+      }
+    },
+    {
+      "id": 5,
+      "name": "Dark Pink",
+      "rgb": "C870A0",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [47], "ext_descrs": [["Dark Pink"]]},
+        "BrickOwl": {"ext_ids": [17], "ext_descrs": [["Dark Pink"]]},
+        "LEGO": {"ext_ids": [221], "ext_descrs": [["Bright Purple", "BR. PURPLE"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["dkpink"]]},
+        "LDraw": {"ext_ids": [5], "ext_descrs": [["Dark_Pink"]]}
+      }
+    },
+    {
+      "id": 6,
+      "name": "Brown",
+      "rgb": "583927",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [8], "ext_descrs": [["Brown"]]},
+        "BrickOwl": {"ext_ids": [46], "ext_descrs": [["Brown"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["oldbrown"]]},
+        "LDraw": {"ext_ids": [6], "ext_descrs": [["Brown"]]},
+        "LEGO": {"ext_ids": [25], "ext_descrs": [["Earth Orange", "EARTH-ORA"]]}
+      }
+    },
+    {
+      "id": 7,
+      "name": "Light Gray",
+      "rgb": "9BA19D",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [9], "ext_descrs": [["Light Gray"]]},
+        "BrickOwl": {"ext_ids": [66], "ext_descrs": [["Light Gray"]]},
+        "LEGO": {"ext_ids": [2], "ext_descrs": [["Grey"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["oldgray"]]},
+        "LDraw": {"ext_ids": [7], "ext_descrs": [["Light_Gray"]]}
+      }
+    },
+    {
+      "id": 8,
+      "name": "Dark Gray",
+      "rgb": "6D6E5C",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [10], "ext_descrs": [["Dark Gray"]]},
+        "BrickOwl": {"ext_ids": [53], "ext_descrs": [["Dark Gray"]]},
+        "LEGO": {"ext_ids": [27], "ext_descrs": [["Dark grey", "DK.GREY"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["olddkgray"]]},
+        "LDraw": {"ext_ids": [8], "ext_descrs": [["Dark_Gray"]]}
+      }
+    },
+    {
+      "id": 9,
+      "name": "Light Blue",
+      "rgb": "B4D2E3",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [62], "ext_descrs": [["Light Blue"]]},
+        "BrickOwl": {"ext_ids": [63], "ext_descrs": [["Light Blue"]]},
+        "LEGO": {"ext_ids": [45], "ext_descrs": [["Light blue"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["ltblue"]]},
+        "LDraw": {"ext_ids": [9], "ext_descrs": [["Light_Blue"]]}
+      }
+    },
+    {
+      "id": 10,
+      "name": "Bright Green",
+      "rgb": "4B9F4A",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [36], "ext_descrs": [["Bright Green"]]},
+        "BrickOwl": {"ext_ids": [41], "ext_descrs": [["Bright Green"]]},
+        "LEGO": {"ext_ids": [37], "ext_descrs": [["Bright Green", "BR.GREEN"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["btgreen"]]},
+        "LDraw": {"ext_ids": [10], "ext_descrs": [["Bright_Green"]]}
+      }
+    },
+    {
+      "id": 11,
+      "name": "Light Turquoise",
+      "rgb": "55A5AF",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [40], "ext_descrs": [["Light Turquoise"]]},
+        "BrickOwl": {"ext_ids": [12], "ext_descrs": [["Light Turquoise"]]},
+        "LEGO": {"ext_ids": [116], "ext_descrs": [["Med. bluish green", "MD.BL-GREEN"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["ltteal"]]},
+        "LDraw": {"ext_ids": [11], "ext_descrs": [["Light_Turquoise"]]}
+      }
+    },
+    {
+      "id": 12,
+      "name": "Salmon",
+      "rgb": "F2705E",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [25], "ext_descrs": [["Salmon"]]},
+        "BrickOwl": {"ext_ids": [84], "ext_descrs": [["Salmon"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["salmon"]]},
+        "LDraw": {"ext_ids": [12], "ext_descrs": [["Salmon"]]},
+        "LEGO": {"ext_ids": [101], "ext_descrs": [["Medium Red"]]}
+      }
+    },
+    {
+      "id": 13,
+      "name": "Pink",
+      "rgb": "FC97AC",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [23], "ext_descrs": [["Pink"]]},
+        "BrickOwl": {"ext_ids": [3], "ext_descrs": [["Pink"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["pink"]]},
+        "LDraw": {"ext_ids": [13], "ext_descrs": [["Pink"]]},
+        "LEGO": {"ext_ids": [9], "ext_descrs": [["L.REDVIOL"]]}
+      }
+    },
+    {
+      "id": 14,
+      "name": "Yellow",
+      "rgb": "F2CD37",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [3], "ext_descrs": [["Yellow"]]},
+        "BrickOwl": {"ext_ids": [93], "ext_descrs": [["Yellow"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["yellow"]]},
+        "LDraw": {"ext_ids": [14], "ext_descrs": [["Yellow"]]},
+        "LEGO": {"ext_ids": [24], "ext_descrs": [["Bright yellow", "BR.YEL", "BRIGHT YELLOW, VERSION 2"]]}
+      }
+    },
+    {
+      "id": 15,
+      "name": "White",
+      "rgb": "FFFFFF",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [1], "ext_descrs": [["White"]]},
+        "BrickOwl": {"ext_ids": [92], "ext_descrs": [["White"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["white"]]},
+        "LDraw": {"ext_ids": [15], "ext_descrs": [["White"]]},
+        "LEGO": {"ext_ids": [1], "ext_descrs": [["White", "WHITE V.3"]]}
+      }
+    },
+    {
+      "id": 17,
+      "name": "Light Green",
+      "rgb": "C2DAB8",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [38], "ext_descrs": [["Light Green"]]},
+        "BrickOwl": {"ext_ids": [11], "ext_descrs": [["Light Green"]]},
+        "LEGO": {"ext_ids": [6], "ext_descrs": [["Light green", "L.GREEN"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["ltgreen"]]},
+        "LDraw": {"ext_ids": [17], "ext_descrs": [["Light_Green"]]}
+      }
+    },
+    {
+      "id": 18,
+      "name": "Light Yellow",
+      "rgb": "FBE696",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [33], "ext_descrs": [["Light Yellow"]]},
+        "BrickOwl": {"ext_ids": [9], "ext_descrs": [["Light Yellow"]]},
+        "LEGO": {"ext_ids": [3], "ext_descrs": [["Light yellow"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["ltyellow"]]},
+        "LDraw": {"ext_ids": [18], "ext_descrs": [["Light_Yellow"]]}
+      }
+    },
+    {
+      "id": 19,
+      "name": "Tan",
+      "rgb": "E4CD9E",
+      "is_trans": false,
+      "external_ids": {
+        "BrickLink": {"ext_ids": [2], "ext_descrs": [["Tan"]]},
+        "BrickOwl": {"ext_ids": [89], "ext_descrs": [["Tan"]]},
+        "LEGO": {"ext_ids": [5], "ext_descrs": [["Brick yellow", "BRICK-YEL"]]},
+        "Peeron": {"ext_ids": [null], "ext_descrs": [["tan"]]},
+        "LDraw": {"ext_ids": [19], "ext_descrs": [["Tan"]]}
+      }
+    }
+  ]
+}

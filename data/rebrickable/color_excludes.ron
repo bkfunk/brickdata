@@ -1,0 +1,29 @@
+// Rebrickable color ids to exclude when regenerating color_names.ron
+// from external-data/rebrickable/colors.json.
+//
+// IDs match Rebrickable's `id` field on each color row. Add an entry
+// here when an obsolete or otherwise unwanted color leaks through into
+// the runtime palette. The file ships with just the sentinel; everything
+// else is opt-in curation.
+//
+// Refresh flow:
+//   external-data/rebrickable/colors.json   ← cached API listing
+// ∖ color_excludes.ron                       ← this file
+// → color_names.ron                          ← regenerated reference
+//
+// Year-range / "hide older than N years" filtering is *not* expressed
+// here — that's a runtime concern (user setting), driven by the catalog
+// DB's per-color year data. This file is for permanent exclusions only.
+
+[
+    // Rebrickable sentinel for "[Unknown]". Groups 17 LDraw codes
+    // (Edge_Colour, Main_Colour, Rubber_* variants) under a non-physical
+    // placeholder; doesn't belong in the runtime palette.
+    -1,
+
+    // Rebrickable id 1081 ("Rust Orange") collides with id 216 ("Rust")
+    // on LDraw code 216. We keep id 216 as the canonical row and fold
+    // "Rust Orange" into its aliases; excluding 1081 prevents the
+    // duplicate ldraw_code row from re-appearing on refresh.
+    1081,
+]

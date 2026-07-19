@@ -1,0 +1,56 @@
+{
+  "count": 6,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "part_num": "3001",
+      "name": "Brick 2 x 4",
+      "part_cat_id": 11,
+      "external_ids": {
+        "BrickLink": ["3001", "3001old"],
+        "LDraw": ["3001"],
+        "LEGO": ["3001", "300126"]
+      }
+    },
+    {
+      "part_num": "92693",
+      "name": "Technic Linear Actuator 4 x 1 x 1",
+      "part_cat_id": 53,
+      "external_ids": {
+        "BrickLink": ["92693c01"],
+        "LDraw": ["92693c01-f1", "92693c01-f2"]
+      }
+    },
+    {
+      "part_num": "33299c01",
+      "name": "Plant Flower Stem",
+      "part_cat_id": 36,
+      "external_ids": {
+        "LDraw": ["33299"]
+      }
+    },
+    {
+      "part_num": "rb-only-99999",
+      "name": "Sticker Sheet for Set 1234",
+      "part_cat_id": 58,
+      "external_ids": {
+        "BrickLink": ["99999"]
+      }
+    },
+    {
+      "part_num": "anomaly-2distinct",
+      "name": "Part With Conflicting LDraw Ids",
+      "part_cat_id": 99,
+      "external_ids": {
+        "LDraw": ["3001", "3002"]
+      }
+    },
+    {
+      "part_num": "973c00",
+      "name": "Torso Assembly",
+      "part_cat_id": 27,
+      "external_ids": {}
+    }
+  ]
+}
