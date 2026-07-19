@@ -20,7 +20,11 @@ pub fn run(pin_path: &Path, cache_dir: &Path) -> Result<()> {
         .with_context(|| format!("loading pin {}", pin_path.display()))?;
     let fetcher: Fetcher<HttpTransport> = Fetcher::new(cache_dir);
     let dir = build::materialize_csv_dir(&fetcher, &pin, cache_dir)?;
-    tracing::info!("cached {} CSVs at {}", pin.file_fingerprints.len(), dir.display());
+    tracing::info!(
+        "cached {} CSVs at {}",
+        pin.file_fingerprints.len(),
+        dir.display()
+    );
     Ok(())
 }
 
@@ -38,7 +42,8 @@ pub fn pinned_ldraw_root(pin_path: &Path, cache_dir: &Path) -> Result<PathBuf> {
         return Ok(tree);
     }
     if tree.exists() {
-        fs::remove_dir_all(&tree).with_context(|| format!("remove half-extract {}", tree.display()))?;
+        fs::remove_dir_all(&tree)
+            .with_context(|| format!("remove half-extract {}", tree.display()))?;
     }
 
     let assets = fetcher
@@ -50,14 +55,16 @@ pub fn pinned_ldraw_root(pin_path: &Path, cache_dir: &Path) -> Result<PathBuf> {
     if tmp.exists() {
         fs::remove_dir_all(&tmp).with_context(|| format!("remove stale {}", tmp.display()))?;
     }
-    unzip_to(&assets.archive, &tmp).with_context(|| format!("extracting {}", assets.archive.display()))?;
+    unzip_to(&assets.archive, &tmp)
+        .with_context(|| format!("extracting {}", assets.archive.display()))?;
     if !tmp.join("parts").is_dir() {
         anyhow::bail!(
             "snapshot {} contains no parts/ directory — not an LDraw library tree",
             pin.mirror_tag
         );
     }
-    fs::rename(&tmp, &tree).with_context(|| format!("moving tree into place at {}", tree.display()))?;
+    fs::rename(&tmp, &tree)
+        .with_context(|| format!("moving tree into place at {}", tree.display()))?;
     tracing::info!("extracted LDraw tree {}", tree.display());
     Ok(tree)
 }

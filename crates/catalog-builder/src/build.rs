@@ -47,6 +47,20 @@ mod resolve;
 /// notice. Stamped into `meta` so a mismatched DB is detectable at load.
 const SCHEMA_VERSION: u32 = 1;
 
+/// The Rebrickable tables a snapshot pin carries (as `<name>.csv.gz`).
+/// `colors.csv` is deliberately absent — color names come from the committed
+/// color reference, not the snapshot.
+pub const TABLES: &[&str] = &[
+    "parts",
+    "part_categories",
+    "part_relationships",
+    "elements",
+    "themes",
+    "sets",
+    "inventories",
+    "inventory_parts",
+];
+
 /// Build `catalog.sqlite` from a Rebrickable pin file, materializing the
 /// pinned CSVs through the verified cache. Thin wrapper over [`run_with`]
 /// for the CLI.
@@ -64,8 +78,8 @@ pub fn run(pin_path: &Path, cache_dir: &Path, ldraw_dir: &Path, out: &Path) -> R
 /// Fetch every CSV of `pin` through the verified content-addressed cache and
 /// hard-link (fall back: copy) each one under `<cache_dir>/rebrickable/
 /// <mirror_tag>/<name>`, the flat named layout the ingest slices read.
-pub fn materialize_csv_dir(
-    fetcher: &Fetcher<HttpTransport>,
+pub fn materialize_csv_dir<T: brickdata::fetch::Transport>(
+    fetcher: &Fetcher<T>,
     pin: &RebrickablePin,
     cache_dir: &Path,
 ) -> Result<PathBuf> {
