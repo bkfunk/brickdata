@@ -92,14 +92,14 @@ impl<'a> PartResolver<'a> {
             // simply absent (no hop) is still returned as-is: the pin is
             // API-vouched, and the aggregation keeps it (invisible in the
             // `part` view until the library grows it).
-            if !self.catalog.contains(design_id) {
-                if let Some(target) = self.redirects.get(design_id) {
-                    return Some(Resolved {
-                        design_id: target,
-                        via_literal: false,
-                        via_redirect: true,
-                    });
-                }
+            if !self.catalog.contains(design_id)
+                && let Some(target) = self.redirects.get(design_id)
+            {
+                return Some(Resolved {
+                    design_id: target,
+                    via_literal: false,
+                    via_redirect: true,
+                });
             }
             return Some(Resolved {
                 design_id,

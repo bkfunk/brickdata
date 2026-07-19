@@ -158,19 +158,19 @@ pub(crate) fn fsync_path(path: &Path) -> Result<()> {
         .with_context(|| format!("open for fsync {}", path.display()))?
         .sync_all()
         .with_context(|| format!("fsync {}", path.display()))?;
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            // A dir fsync makes the rename/entry durable; not all platforms
-            // support opening a dir as a File, so a failure here is downgraded
-            // to a warning rather than failing the build.
-            match fs::File::open(parent) {
-                Ok(dir) => {
-                    if let Err(e) = dir.sync_all() {
-                        tracing::warn!("could not fsync dir {}: {e}", parent.display());
-                    }
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        // A dir fsync makes the rename/entry durable; not all platforms
+        // support opening a dir as a File, so a failure here is downgraded
+        // to a warning rather than failing the build.
+        match fs::File::open(parent) {
+            Ok(dir) => {
+                if let Err(e) = dir.sync_all() {
+                    tracing::warn!("could not fsync dir {}: {e}", parent.display());
                 }
-                Err(e) => tracing::warn!("could not open dir {} to fsync: {e}", parent.display()),
             }
+            Err(e) => tracing::warn!("could not open dir {} to fsync: {e}", parent.display()),
         }
     }
     Ok(())
@@ -189,11 +189,11 @@ pub(crate) fn fsync_path(path: &Path) -> Result<()> {
 /// pinned Rebrickable snapshots, the regenerated color reference, future
 /// catalog artifacts.
 pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("create parent dir {}", parent.display()))?;
-        }
+    if let Some(parent) = path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create parent dir {}", parent.display()))?;
     }
     let tmp = with_suffix(path, ".tmp");
     {

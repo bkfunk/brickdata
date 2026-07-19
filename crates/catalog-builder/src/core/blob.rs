@@ -43,7 +43,7 @@ pub fn pack_u32_le(values: &[u32]) -> Option<Vec<u8>> {
 /// trailing partial chunk means a packing or storage bug, which should fail
 /// loudly rather than be silently truncated the way `chunks_exact` would.
 pub fn unpack_u32_le(bytes: &[u8]) -> Result<Vec<u32>, BlobLengthError> {
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return Err(BlobLengthError { len: bytes.len() });
     }
     Ok(bytes

@@ -96,13 +96,13 @@ impl ColorReference {
         let mut by_rb: BTreeMap<u32, u32> = BTreeMap::new();
         for entry in entries {
             let code = entry.ldraw_code;
-            if let Some(rb) = entry.rb_color_id {
-                if let Some(prior_code) = by_rb.insert(rb, code) {
-                    panic!(
-                        "color_names.ron: rb_color_id {rb} maps to both ldraw_code \
-                         {prior_code} and {code}"
-                    );
-                }
+            if let Some(rb) = entry.rb_color_id
+                && let Some(prior_code) = by_rb.insert(rb, code)
+            {
+                panic!(
+                    "color_names.ron: rb_color_id {rb} maps to both ldraw_code \
+                     {prior_code} and {code}"
+                );
             }
             if by_ldraw.insert(code, entry).is_some() {
                 panic!("color_names.ron: ldraw_code {code} appears more than once");

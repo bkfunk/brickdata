@@ -435,12 +435,12 @@ pub fn canonical_design_id(stem: &str) -> (&str, u32) {
         // itself from `flexion_variants`. A run that doesn't fit in u32 can't
         // be a real position either, so it's left as non-flexion rather than
         // collapsed to a phantom `<base>-f<u32::MAX>` that no `.dat` backs.
-        if !pos.is_empty() && pos.bytes().all(|b| b.is_ascii_digit()) {
-            if let Ok(rank) = pos.parse::<u32>() {
-                if rank >= 1 {
-                    return (base, rank);
-                }
-            }
+        if !pos.is_empty()
+            && pos.bytes().all(|b| b.is_ascii_digit())
+            && let Ok(rank) = pos.parse::<u32>()
+            && rank >= 1
+        {
+            return (base, rank);
         }
     }
     (stem, 0)

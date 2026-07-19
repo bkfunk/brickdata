@@ -445,10 +445,10 @@ fn entry_for(color: &ApiColor) -> Option<ColorRefEntry> {
         // LDraw's / unknown systems' canonical name isn't a separate
         // field on ColorNames, but the string is still useful for
         // search — fold it into aliases too.
-        if let Some(name) = system.canonical_name() {
-            if !canonical.contains(name.as_str()) {
-                aliases.insert(name);
-            }
+        if let Some(name) = system.canonical_name()
+            && !canonical.contains(name.as_str())
+        {
+            aliases.insert(name);
         }
     }
 

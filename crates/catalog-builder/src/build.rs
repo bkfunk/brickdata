@@ -125,11 +125,11 @@ pub fn run_with(
     }
 
     // Ensure the output directory exists before staging anything in it.
-    if let Some(parent) = out.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("create output dir {}", parent.display()))?;
-        }
+    if let Some(parent) = out.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create output dir {}", parent.display()))?;
     }
 
     // Build into a sibling `.tmp` and rename over `out` on success, so a
