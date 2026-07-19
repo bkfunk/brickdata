@@ -42,10 +42,12 @@ mod rb_parts;
 mod rb_sets;
 mod rb_themes;
 mod resolve;
+mod xref;
 
 /// Bumped whenever the on-disk schema changes in a way the runtime must
 /// notice. Stamped into `meta` so a mismatched DB is detectable at load.
-const SCHEMA_VERSION: u32 = 1;
+/// v2 (#12): `colors` + `rb_part_external_id` tables.
+const SCHEMA_VERSION: u32 = 2;
 
 /// The Rebrickable tables a snapshot pin carries (as `<name>.csv.gz`).
 /// `colors.csv` is deliberately absent — color names come from the committed
@@ -213,6 +215,13 @@ fn build_into(
     // Part↔part relationships, filtered to rows touching the catalog (#82).
     let rels = rb_part_relationships::build(&conn, csv_dir, &resolver)?;
     stamp_all(&conn, &rels.meta_rows())?;
+
+    // Schema v2 (#12): the color reference and the pin's structured external
+    // ids become tables, making the DB the self-sufficient cleaned artifact.
+    let color_rows = xref::build_colors(&conn)?;
+    stamp(&conn, "colors_count", &color_rows.to_string())?;
+    let ext = xref::build_external_ids(&conn, &rb_cross_ref_pin, &resolver)?;
+    stamp_all(&conn, &ext.meta_rows())?;
 
     // Finalize (#73): the `part` view + FTS index, then ANALYZE/VACUUM, then
     // `build_status = 'complete'` as the very last write so an interrupted

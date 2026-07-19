@@ -116,10 +116,10 @@ const CROSSREFS_RON: &str = r#"RbCrossRefPin(
     generated: "2026-05-27",
     parts: {
         "3001": (ldraw: "3001", external_ids: {"BrickLink": ["3001"]}),
-        "3023": (ldraw: "3023", external_ids: {}),
+        "3023": (ldraw: "3023", external_ids: {"BrickLink": ["3023"]}),
         "3024": (ldraw: "3024", external_ids: {}),
-        "3626": (ldraw: "3626", external_ids: {}),
-        "92693": (ldraw: "92693c01", external_ids: {}),
+        "3626": (ldraw: "3626", external_ids: {"BrickOwl": ["999998"]}),
+        "92693": (ldraw: "92693c01", external_ids: {"BrickLink": ["92693", "92693alt"]}),
     },
 )
 "#;
@@ -222,7 +222,7 @@ fn build_creates_db_with_meta_rows() {
     );
 
     let meta = read_meta(&out);
-    assert_eq!(meta.get("schema_version").map(String::as_str), Some("1"));
+    assert_eq!(meta.get("schema_version").map(String::as_str), Some("2"));
     assert_eq!(
         meta.get("snapshot_date").map(String::as_str),
         Some("2026-05-27")
@@ -925,6 +925,79 @@ fn build_is_deterministic() {
     assert_eq!(
         first, second,
         "two builds from the same pins must be byte-identical"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Schema v2 (#12): the compiled-in color reference and the pin's structured
+/// external ids land as queryable tables.
+#[test]
+fn build_writes_colors_and_external_id_tables() {
+    let root = temp_root("xref");
+    let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
+    let crossrefs = write_crossrefs(&root);
+    let out = root.join("catalog.sqlite");
+
+    build::run_with(&pin, &csv_dir, &crossrefs, &fixture_ldraw_dir(), &out)
+        .expect("build should succeed");
+
+    let conn = Connection::open(&out).unwrap();
+    let meta = read_meta(&out);
+
+    // colors: one row per color-reference entry; aliases round-trip as JSON.
+    let color_count: i64 = conn
+        .query_row("SELECT count(*) FROM colors", [], |r| r.get(0))
+        .unwrap();
+    assert!(
+        color_count > 100,
+        "the compiled-in reference should have >100 rows, got {color_count}"
+    );
+    assert_eq!(
+        meta.get("colors_count").and_then(|v| v.parse::<i64>().ok()),
+        Some(color_count)
+    );
+    let (rb, bl_name, aliases): (Option<i64>, Option<String>, String) = conn
+        .query_row(
+            "SELECT rb_color_id, name_bricklink, aliases FROM colors WHERE ldraw_code = 4",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(rb, Some(4), "LDraw red maps to Rebrickable color 4");
+    assert!(bl_name.is_some(), "red has a BrickLink display name");
+    let _: Vec<String> = serde_json::from_str(&aliases).expect("aliases is a JSON string array");
+
+    // rb_part_external_id: 3001's BrickLink id resolves in-catalog; 3023's
+    // resolves through the tombstone redirect to 3023b; 3626's BrickOwl id
+    // and 92693's two BrickLink ids keep a NULL design_id (pin-mapped but
+    // absent from the fixture library — same membership gate as the
+    // relationships slice).
+    let ext = |part: &str, system: &str, id: &str| -> Option<String> {
+        conn.query_row(
+            "SELECT design_id FROM rb_part_external_id
+             WHERE part_num = ?1 AND system = ?2 AND external_id = ?3",
+            rusqlite::params![part, system, id],
+            |r| r.get::<_, Option<String>>(0),
+        )
+        .expect("row exists")
+    };
+    assert_eq!(ext("3001", "BrickLink", "3001").as_deref(), Some("3001"));
+    assert_eq!(ext("3023", "BrickLink", "3023").as_deref(), Some("3023b"));
+    assert_eq!(ext("3626", "BrickOwl", "999998"), None);
+    assert_eq!(ext("92693", "BrickLink", "92693alt"), None);
+
+    let total: i64 = conn
+        .query_row("SELECT count(*) FROM rb_part_external_id", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(total, 5, "one row per (part, system, external_id)");
+    assert_eq!(
+        meta.get("rb_part_external_id_count").map(String::as_str),
+        Some("5")
+    );
+    assert_eq!(
+        meta.get("rb_part_external_id_resolved").map(String::as_str),
+        Some("2")
     );
 
     let _ = std::fs::remove_dir_all(&root);

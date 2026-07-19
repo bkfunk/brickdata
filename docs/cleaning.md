@@ -66,6 +66,17 @@ silently wrong catalog.
 the six catalog-relevant codes (P/T/M/A/R/B) and that touch at least one
 in-catalog part are ingested; exact duplicates collapse.
 
+## Cross-reference tables (schema v2)
+
+`src/build/xref.rs` (#12). The `colors` table is the compiled-in color
+reference written out as data (LDraw code ↔ RB color id ↔ canonical
+LEGO/BrickLink/Rebrickable names, aliases as a JSON array).
+`rb_part_external_id` is the cross-ref pin flattened to one row per
+`(part_num, system, external_id)` with the LDraw `design_id` resolved
+through the same membership-gated ladder as the relationships slice (NULL
+when the part isn't in the scanned library). External ids are second-hand
+via the Rebrickable API — not authoritative (see `LICENSES/REBRICKABLE.md`).
+
 ## Determinism
 
 Identical pins produce byte-identical `catalog.sqlite` (integration test
