@@ -33,6 +33,7 @@ use crate::util;
 
 mod finalize;
 mod inventory;
+mod part_frequency;
 mod rb_elements;
 mod rb_ingest;
 mod rb_inventories;
@@ -154,6 +155,14 @@ pub fn run_with(
     util::fsync_path(&tmp).with_context(|| format!("fsync {}", tmp.display()))?;
     util::replace_file(&tmp, out)?;
     tracing::info!("wrote {}", out.display());
+
+    // Sidecar: project the finished DB into part_frequency.ron next to it, so
+    // consumers that only need usage ranking (e.g. blockstar#137's cache subset
+    // selector) needn't open the ~88 MB catalog. A pure read of the committed DB.
+    let freq_path = out.with_file_name("part_frequency.ron");
+    let conn = Connection::open(out).with_context(|| format!("reopen {}", out.display()))?;
+    let parts = part_frequency::generate(&conn, &freq_path)?;
+    tracing::info!("wrote {} ({parts} parts)", freq_path.display());
     Ok(())
 }
 

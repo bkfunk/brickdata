@@ -241,6 +241,39 @@ fn build_creates_db_with_meta_rows() {
 }
 
 #[test]
+fn build_emits_part_frequency_sidecar_next_to_the_db() {
+    let root = temp_root("freq");
+    let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
+    let crossrefs = write_crossrefs(&root);
+    let out = root.join("catalog.sqlite");
+
+    build::run_with(&pin, &csv_dir, &crossrefs, &fixture_ldraw_dir(), &out)
+        .expect("build should succeed");
+
+    let sidecar = root.join("part_frequency.ron");
+    assert!(
+        sidecar.exists(),
+        "part_frequency.ron should be written next to catalog.sqlite"
+    );
+    assert!(
+        !root.join("part_frequency.ron.tmp").exists(),
+        "the .tmp staging sidecar should have been renamed away"
+    );
+
+    let text = std::fs::read_to_string(&sidecar).unwrap();
+    assert!(text.contains("PartFrequency("), "{text}");
+    // Provenance mirrors the DB's own meta table.
+    assert!(
+        text.contains("generated_from: \"rebrickable-2026-05-27\","),
+        "{text}"
+    );
+    // Parses as valid RON on real fixture data (part ids get quoted correctly).
+    let _: ron::Value = ron::from_str(&text).expect("sidecar should be valid RON");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn build_fails_loudly_when_a_pinned_csv_is_missing() {
     let root = temp_root("missing");
     let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
