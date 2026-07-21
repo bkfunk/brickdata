@@ -153,8 +153,9 @@ fn render_ints<T: std::fmt::Display>(xs: &[T]) -> String {
 }
 
 /// Aggregate, render, and write `part_frequency.ron` to `out_path`, drawing
-/// provenance from the DB's own `meta` table. Written via a temp sibling +
-/// rename so a failed run never leaves a torn file. Returns the part count.
+/// provenance from the DB's own `meta` table. Written via [`util::atomic_write`]
+/// (temp sibling + fsync + rename) so a crash never leaves a torn file. Returns
+/// the part count.
 pub(crate) fn generate(conn: &Connection, out_path: &std::path::Path) -> Result<usize> {
     let snapshot = meta_value(conn, "rebrickable_snapshot")?;
     let snapshot_date = meta_value(conn, "snapshot_date")?;
@@ -162,10 +163,9 @@ pub(crate) fn generate(conn: &Connection, out_path: &std::path::Path) -> Result<
     let count = agg.parts.len();
     let text = render(&snapshot, &snapshot_date, &agg);
 
-    // Temp sibling + rename, so a failed write never leaves a torn sidecar.
-    let tmp = crate::util::with_suffix(out_path, ".tmp");
-    std::fs::write(&tmp, text).with_context(|| format!("write {}", tmp.display()))?;
-    crate::util::replace_file(&tmp, out_path)?;
+    // Same durability the DB build takes (see `run_with`): fsync the staged
+    // temp before the rename, so a power loss never leaves a torn sidecar.
+    crate::util::atomic_write(out_path, text.as_bytes())?;
     Ok(count)
 }
 

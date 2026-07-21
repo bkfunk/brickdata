@@ -160,7 +160,10 @@ pub fn run_with(
     // consumers that only need usage ranking (e.g. blockstar#137's cache subset
     // selector) needn't open the ~88 MB catalog. A pure read of the committed DB.
     let freq_path = out.with_file_name("part_frequency.ron");
-    let conn = Connection::open(out).with_context(|| format!("reopen {}", out.display()))?;
+    // Read-only so generation can't create a journal/WAL file next to the
+    // published DB or take a write lock — a genuinely pure read of the artifact.
+    let conn = Connection::open_with_flags(out, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .with_context(|| format!("reopen {} read-only", out.display()))?;
     let parts = part_frequency::generate(&conn, &freq_path)?;
     tracing::info!("wrote {} ({parts} parts)", freq_path.display());
     Ok(())
