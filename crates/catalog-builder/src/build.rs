@@ -157,8 +157,8 @@ pub fn run_with(
     tracing::info!("wrote {}", out.display());
 
     // Sidecar: project the finished DB into part_frequency.ron next to it, so
-    // consumers that only need usage ranking (e.g. blockstar#137's cache subset
-    // selector) needn't open the ~88 MB catalog. A pure read of the committed DB.
+    // consumers that only need per-part usage figures needn't open the full
+    // catalog. A pure read of the committed DB.
     let freq_path = out.with_file_name("part_frequency.ron");
     // Read-only so generation can't create a journal/WAL file next to the
     // published DB or take a write lock — a genuinely pure read of the artifact.
