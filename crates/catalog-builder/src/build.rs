@@ -33,6 +33,7 @@ use crate::util;
 
 mod finalize;
 mod inventory;
+mod part_frequency;
 mod rb_elements;
 mod rb_ingest;
 mod rb_inventories;
@@ -154,6 +155,17 @@ pub fn run_with(
     util::fsync_path(&tmp).with_context(|| format!("fsync {}", tmp.display()))?;
     util::replace_file(&tmp, out)?;
     tracing::info!("wrote {}", out.display());
+
+    // Sidecar: project the finished DB into part_frequency.ron next to it, so
+    // consumers that only need per-part usage figures needn't open the full
+    // catalog. A pure read of the committed DB.
+    let freq_path = out.with_file_name("part_frequency.ron");
+    // Read-only so generation can't create a journal/WAL file next to the
+    // published DB or take a write lock — a genuinely pure read of the artifact.
+    let conn = Connection::open_with_flags(out, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .with_context(|| format!("reopen {} read-only", out.display()))?;
+    let parts = part_frequency::generate(&conn, &freq_path)?;
+    tracing::info!("wrote {} ({parts} parts)", freq_path.display());
     Ok(())
 }
 
