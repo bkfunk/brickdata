@@ -278,6 +278,15 @@ fn build_emits_part_frequency_sidecar_next_to_the_db() {
 
     let text = std::fs::read_to_string(&sidecar).unwrap();
     assert!(text.contains("PartFrequency("), "{text}");
+    // #19: the sidecar now reports builds, not raw sets.
+    assert!(
+        text.contains("builds:"),
+        "sidecar should carry build counts:\n{text}"
+    );
+    assert!(
+        text.contains("build_qty:"),
+        "sidecar should carry build quantities"
+    );
     // Provenance mirrors the DB's own meta table.
     assert!(
         text.contains("generated_from: \"rebrickable-2026-05-27\","),
