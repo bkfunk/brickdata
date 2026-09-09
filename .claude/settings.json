@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(git branch *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git restore *)",
+      "Bash(git stash *)",
+      "Bash(git tag *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git apply *)",
+      "Bash(git ls-remote *)",
+      "Bash(git ls-tree *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh label *)",
+      "Bash(gh run *)",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "Bash(gh auth status)",
+      "Bash(cargo test *)",
+      "Bash(cargo clippy *)",
+      "Bash(cargo build *)",
+      "Bash(cargo check *)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo tree *)",
+      "Bash(cargo doc *)",
+      "Bash(just --list)",
+      "Bash(just --version)",
+      "Bash(just --summary)",
+      "Bash(just verify *)"
+    ]
+  }
+}
