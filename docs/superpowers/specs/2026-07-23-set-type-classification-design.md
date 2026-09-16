@@ -135,11 +135,15 @@ sidecar. It is simply the honest column value.
 Dropping `unknown` (as floated in the issue) was rejected once the data showed
 these 7,391 genuine no-data sets exist.
 
-### Keyword lists (initial; refined with precision tests during implementation)
+### Keyword lists (as implemented in `set_classify.rs`)
 
-Matched case-insensitively, on word/phrase boundaries, and **only when
-`eligible`** (so a 90-mold set named "…Baseplate" stays a `build`). Deliberately
-high-precision / low-recall — keywords confirm, they are not the sole test.
+Matched case-insensitively, on word/phrase boundaries (both ends of a match
+must be the start/end of the name or a non-alphanumeric character, so
+"Backpack of Bricks" does not hit `pack of` and "Watchtower" does not hit
+`watch`; a trailing plural `s` is tolerated so "Baseplates" / "Magnets" hit),
+and **only when `eligible`** (so a 90-mold set named "…Baseplate" stays a
+`build`). Deliberately high-precision / low-recall — keywords confirm, they are
+not the sole test.
 
 - **`BASEPLATE_KEYWORDS`**: `baseplate`, `base plate`, `building plate`,
   `brickplate`.
@@ -147,9 +151,12 @@ high-precision / low-recall — keywords confirm, they are not the sole test.
   `ornament`, `clock`. (Kept conservative; most merchandise is already `unknown`
   with no inventory.)
 - **`PACK_PHRASES`**: `pack of`, `parts pack`, `spare`, `assorted`,
-  `assortment`, `bulk`, `bucket`, ` tub`, `supplementary`. **Bare "pack" is
-  deliberately excluded** — it matches "Battle Pack", "Booster Pack", "Backpack"
-  (all builds); the specific phrases do not.
+  `assortment`, `bulk`, `bucket`, `supplementary`. **Bare "pack" is
+  deliberately excluded** — it matches "Battle Pack" / "Booster Pack" (both
+  builds); the specific phrases do not. **`tub` is deliberately omitted** — bulk
+  tubs are already caught by `bulk` or the concentration rule, while as a whole
+  word it also names small genuine builds ("Tub Boat", "Bath-Tub Buddies"), so
+  the keyword would cost precision for little recall.
 
 ## Pipeline & storage
 

@@ -4,8 +4,9 @@
 //!
 //! Signals: a set's *true* distinct-mold count and its pieces-per-mold
 //! concentration (from the raw pre-mapping inventory) plus curated,
-//! high-precision set-name keywords. **No LDraw part categories** (a follow-up
-//! will investigate whether they help).
+//! high-precision set-name keywords matched on word boundaries (see
+//! `name_matches`). **No LDraw part categories** (a follow-up will investigate
+//! whether they help).
 //!
 //! ## The ceiling gate
 //!
@@ -69,8 +70,10 @@ impl SetType {
 
 /// Baseplate / building-plate name markers.
 const BASEPLATE_KEYWORDS: &[&str] = &["baseplate", "base plate", "building plate", "brickplate"];
-/// Non-build merchandise markers. Collisions (e.g. "Watchtower") are guarded by
-/// the distinct ceiling — real builds with these words have >14 molds.
+/// Non-build merchandise markers. Whole-word collisions ("Clock Tower Bob",
+/// "Coast Watch HQ") are guarded by the distinct ceiling — real builds with
+/// these words have >14 molds. Word-boundary matching keeps "Watchtower" /
+/// "Stopwatch" / "Magnetic" from hitting at all.
 const MERCHANDISE_KEYWORDS: &[&str] = &[
     "watch",
     "magnet",
@@ -80,8 +83,10 @@ const MERCHANDISE_KEYWORDS: &[&str] = &[
     "clock",
 ];
 /// Bulk / assortment markers. Deliberately specific: bare "pack" is absent (it
-/// matches "Battle Pack" / "Booster Pack" / "Backpack", all builds). "tub" is
-/// omitted (it collides with "tube"); tubs are caught by [`CONCENTRATION`].
+/// matches "Battle Pack" / "Booster Pack", both builds). "tub" is omitted: bulk
+/// tubs are caught by "bulk" / [`CONCENTRATION`], while as a whole word it also
+/// names small genuine builds ("Tub Boat", "Bath-Tub Buddies"), so it would
+/// cost precision for little recall.
 const PACK_PHRASES: &[&str] = &[
     "pack of",
     "parts pack",
@@ -93,8 +98,49 @@ const PACK_PHRASES: &[&str] = &[
     "supplementary",
 ];
 
+/// Does any keyword occur in the (already lowercased) name as a whole word or
+/// phrase? Both ends of a match must sit on a word boundary — the start/end of
+/// the name or a non-alphanumeric character — so "pack of" hits "Pack of 50"
+/// but not "Backpack of Bricks", and "watch" hits "Star Wars Watch" but not
+/// "Watchtower" / "Stopwatch". A trailing plural `s` is tolerated ("Baseplates",
+/// "Magnets" — half the real baseplate packs are named in the plural); any
+/// other suffix ("Magnetic", "Bucketful") is a different word.
 fn name_matches(name_lc: &str, keywords: &[&str]) -> bool {
-    keywords.iter().any(|k| name_lc.contains(k))
+    keywords.iter().any(|k| matches_whole_word(name_lc, k))
+}
+
+/// One keyword/phrase, tried at every occurrence in `name_lc` (advancing one
+/// char per attempt so overlapping candidates are not skipped).
+fn matches_whole_word(name_lc: &str, keyword: &str) -> bool {
+    if keyword.is_empty() {
+        return false;
+    }
+    let mut from = 0;
+    while let Some(rel) = name_lc[from..].find(keyword) {
+        let start = from + rel;
+        let end = start + keyword.len();
+        let boundary_before = name_lc[..start]
+            .chars()
+            .next_back()
+            .is_none_or(|c| !c.is_alphanumeric());
+        if boundary_before && boundary_after(&name_lc[end..]) {
+            return true;
+        }
+        from = start + name_lc[start..].chars().next().map_or(1, char::len_utf8);
+    }
+    false
+}
+
+/// Is `rest` (the text right after a keyword occurrence) a word boundary,
+/// optionally preceded by a plural `s`?
+fn boundary_after(rest: &str) -> bool {
+    let mut chars = rest.chars();
+    match chars.next() {
+        None => true,
+        Some(c) if !c.is_alphanumeric() => true,
+        Some('s') => chars.next().is_none_or(|c| !c.is_alphanumeric()),
+        Some(_) => false,
+    }
 }
 
 /// Classify a set from its raw inventory shape and name. Pure — the calibration
@@ -271,6 +317,69 @@ mod tests {
     fn no_inventory_is_unknown_unless_a_keyword_hits() {
         assert_eq!(classify(None, "Some Promotional Thing"), SetType::Unknown);
         assert_eq!(classify(None, "32 x 32 Baseplate"), SetType::Baseplate);
+    }
+
+    #[test]
+    fn keywords_match_on_word_boundaries_only() {
+        // Substring hits inside a longer word are not matches.
+        assert!(!name_matches("backpack of bricks", PACK_PHRASES));
+        assert!(!name_matches("creative transparent bricks", PACK_PHRASES)); // "spare"
+        assert!(!name_matches("watchtower", MERCHANDISE_KEYWORDS));
+        assert!(!name_matches(
+            "competition racers with stopwatch",
+            MERCHANDISE_KEYWORDS
+        ));
+        // Genuine whole-word / whole-phrase hits still match — at either end of
+        // the name, next to punctuation, and across a phrase's internal space.
+        assert!(name_matches("bricks & more pack of 50", PACK_PHRASES));
+        assert!(name_matches("lego star wars watch", MERCHANDISE_KEYWORDS));
+        assert!(name_matches("key chain - batman", MERCHANDISE_KEYWORDS));
+        assert!(name_matches("(spare) parts", PACK_PHRASES));
+        // Boundary matching is purely lexical: "Clock Tower" does contain the
+        // word "clock". It is the distinct ceiling that keeps such builds.
+        assert!(name_matches("clock tower bob", MERCHANDISE_KEYWORDS));
+    }
+
+    #[test]
+    fn keywords_match_their_simple_plural_but_no_other_suffix() {
+        assert!(name_matches(
+            "baseplates, green and yellow",
+            BASEPLATE_KEYWORDS
+        ));
+        assert!(name_matches("large building plates", BASEPLATE_KEYWORDS));
+        assert!(name_matches("magnets", MERCHANDISE_KEYWORDS));
+        assert!(!name_matches("magnetic couplings", MERCHANDISE_KEYWORDS));
+        assert!(!name_matches("bucketful of fun", PACK_PHRASES));
+        assert!(!name_matches("bulkar", PACK_PHRASES));
+    }
+
+    #[test]
+    fn substring_collisions_fall_through_to_the_numeric_rules() {
+        // 5 molds / 20 pieces = 4 pieces per mold: a build unless a keyword hits.
+        let c = counts(5, 20);
+        assert_eq!(classify(Some(&c), "Backpack of Bricks"), SetType::Build);
+        assert_eq!(classify(Some(&c), "Watchtower"), SetType::Build);
+        assert_eq!(classify(None, "Watchtower"), SetType::Unknown);
+        // The same shape with a genuine phrase hit is a pack.
+        assert_eq!(
+            classify(Some(&c), "Bricks & More Pack of 50"),
+            SetType::PartsPack
+        );
+        // A plural baseplate name is a baseplate, not a single-mold parts pack.
+        assert_eq!(
+            classify(Some(&counts(1, 2)), "Baseplates, Red and Blue"),
+            SetType::Baseplate
+        );
+    }
+
+    #[test]
+    fn whole_word_collisions_are_guarded_by_the_ceiling() {
+        // "Clock Tower Bob" has 16 molds in the real data: the word "clock"
+        // hits, but the set sits above DISTINCT_CEILING → build.
+        assert_eq!(
+            classify(Some(&counts(16, 60)), "Clock Tower Bob"),
+            SetType::Build
+        );
     }
 
     #[test]
