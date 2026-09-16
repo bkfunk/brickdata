@@ -9,7 +9,6 @@
       "Bash(git clean -x*)",
       "Bash(git stash clear*)",
       "Bash(git stash drop*)",
-      "Bash(git branch -D*)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git push --delete*)",
