@@ -7,6 +7,7 @@
 
 use brickdata::pin::{AssetFingerprint, RebrickablePin};
 use brickdata_catalog_builder::core::blob::unpack_u32_le;
+use brickdata_catalog_builder::core::categories;
 use brickdata_catalog_builder::core::{Category, PartCatalog};
 use brickdata_catalog_builder::{build, util};
 use rusqlite::Connection;
@@ -269,6 +270,29 @@ fn build_emits_part_frequency_sidecar_next_to_the_db() {
     );
     // Parses as valid RON on real fixture data (part ids get quoted correctly).
     let _: ron::Value = ron::from_str(&text).expect("sidecar should be valid RON");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// The build stamps the taxonomy fingerprint (blockstar#138) so a reader
+/// can refuse a catalog whose category ids were encoded with a different
+/// `categories.rs` than its own.
+#[test]
+fn build_stamps_taxonomy_fingerprint() {
+    let root = temp_root("taxonomy-fingerprint");
+    let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
+    let crossrefs = write_crossrefs(&root);
+    let out = root.join("catalog.sqlite");
+
+    build::run_with(&pin, &csv_dir, &crossrefs, &fixture_ldraw_dir(), &out)
+        .expect("build should succeed against a matching cache");
+
+    let meta = read_meta(&out);
+    let stamped = meta
+        .get(categories::TAXONOMY_FINGERPRINT_META_KEY)
+        .map(String::as_str);
+    assert_eq!(stamped, Some(categories::taxonomy_fingerprint().as_str()));
+    assert_eq!(stamped, Some(categories::PINNED_TAXONOMY_FINGERPRINT));
 
     let _ = std::fs::remove_dir_all(&root);
 }

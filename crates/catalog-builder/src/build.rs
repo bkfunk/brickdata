@@ -27,6 +27,7 @@ use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::core::categories;
 use crate::ldraw_part;
 use crate::refresh_parts::RbCrossRefPin;
 use crate::util;
@@ -200,6 +201,14 @@ fn build_into(
     stamp(&conn, "ldraw_part_count", &scan.parts.to_string())?;
     stamp(&conn, "ldraw_moved_to_count", &scan.moved_to.to_string())?;
     stamp(&conn, "ldraw_alias_count", &scan.aliases.to_string())?;
+    // The taxonomy those rows' category_id / subcategory_id were encoded
+    // with (blockstar#138): a reader compares this to the fingerprint of its
+    // own categories.rs before trusting the ids.
+    stamp(
+        &conn,
+        categories::TAXONOMY_FINGERPRINT_META_KEY,
+        &categories::taxonomy_fingerprint(),
+    )?;
 
     ingest_rebrickable_tables(&conn, csv_dir)?;
 

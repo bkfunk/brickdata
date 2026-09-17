@@ -21,9 +21,11 @@
 //!
 //! The classified `Subcategory`/`Category` are stored as their enum
 //! discriminants (`as u16`); category display names stay client-side in
-//! `blockstar_core` rather than in a lookup table. The discriminant
-//! encoding is pinned by the tests below (`Category` fully, `Subcategory`
-//! by sentinel).
+//! `blockstar_core` rather than in a lookup table. Every discriminant is
+//! explicit and pinned value-by-value in `categories.rs`, and the build
+//! stamps `meta.taxonomy_fingerprint` (a hash of the whole encoding) so a
+//! reader can refuse a catalog written with a different taxonomy
+//! (blockstar#138).
 //!
 //! Two companion tables record the redirect hops the scan sees (#112):
 //!
@@ -154,47 +156,18 @@ fn populate(conn: &Connection, catalog: &PartCatalog) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::{Category, Subcategory};
+    use crate::core::categories::{PINNED_TAXONOMY_FINGERPRINT, taxonomy_fingerprint};
 
     // `build` stores the taxonomy as `enum as u16` discriminants, so the
-    // discriminant values are an on-disk contract: reordering the enums in
-    // blockstar-core would silently repoint every stored id.
-
-    // `Category` is small, so pin every current variant to its discriminant,
-    // in order. This fails on any reorder or mid-list insertion — the changes
-    // that repoint already-stored ids. Appending a new *trailing* variant
-    // leaves these discriminants unchanged and is intentionally allowed (old
-    // stored ids stay valid), so it is deliberately not caught here.
+    // discriminant values are an on-disk contract. Every variant of both
+    // enums is pinned value-by-value in categories.rs
+    // (`category_discriminants_are_pinned` /
+    // `subcategory_discriminants_are_pinned`); this test pins the whole
+    // encoding at once, through the same fingerprint `build` stamps into
+    // `meta`, so a drifted taxonomy also fails next to the code that
+    // writes it.
     #[test]
-    fn category_discriminants_are_fully_pinned() {
-        let expected = [
-            (Category::Bricks, 0),
-            (Category::Plates, 1),
-            (Category::Tiles, 2),
-            (Category::Slopes, 3),
-            (Category::Technic, 4),
-            (Category::Electronics, 5),
-            (Category::Minifigs, 6),
-            (Category::ThemeElements, 7),
-            (Category::Nature, 8),
-            (Category::Buildings, 9),
-            (Category::Vehicles, 10),
-            (Category::Other, 11),
-        ];
-        for (cat, disc) in expected {
-            assert_eq!(cat as u16, disc, "{cat:?} discriminant drifted");
-        }
-    }
-
-    // `Subcategory` has ~90 variants, so a full pin would be its own
-    // maintenance burden. These sentinels catch the common drift (a variant
-    // added/removed before them shifts their values) but do NOT prove the
-    // entire mapping is stable — a reorder among unchecked variants would
-    // pass. Treat them as a tripwire, not a complete contract.
-    #[test]
-    fn subcategory_sentinel_discriminants() {
-        assert_eq!(Subcategory::Bricks as u16, 0);
-        assert_eq!(Subcategory::Plates as u16, 4);
-        assert_eq!(Subcategory::TechnicBricks as u16, 19);
+    fn stored_taxonomy_encoding_matches_the_pinned_fingerprint() {
+        assert_eq!(taxonomy_fingerprint(), PINNED_TAXONOMY_FINGERPRINT);
     }
 }
