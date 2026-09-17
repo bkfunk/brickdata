@@ -3,11 +3,16 @@
 //!
 //! - `rebrickable-*.ron`: per-file fingerprints for the bulk-CSV assets
 //! - `ldraw-*.ron`: merged-tree zip + content manifest fingerprints
-//! - `catalog-*.ron`: a single built `catalog.sqlite` fingerprint
+//! - `catalog-*.ron`: the built `catalog.sqlite` fingerprint plus a
+//!   `sidecars` map of the small companion assets published on the same
+//!   release (`part_frequency.ron`, `color_names.ron`), each pinned by the
+//!   same url + sha256 + byte-size triple as the catalog itself. Pins cut
+//!   before sidecars existed omit the map and parse with an empty one.
 //!
 //! The shapes are distinguished structurally (an LDraw pin has
-//! `manifest_sha256`; a Rebrickable pin has `file_fingerprints`), mirroring
-//! how the shell `verify` recipe dispatches.
+//! `manifest_sha256`; a Rebrickable pin has `file_fingerprints`; anything
+//! else is a catalog pin), mirroring how the shell `verify` recipe
+//! dispatches.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -57,7 +62,8 @@ pub struct LdrawPin {
     pub file_count: u64,
 }
 
-/// Pin for a `catalog-YYYY-MM-DD` release: one built `catalog.sqlite`.
+/// Pin for a `catalog-YYYY-MM-DD` release: one built `catalog.sqlite` plus
+/// the sidecar assets published next to it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CatalogPin {
     /// Release tag, e.g. `catalog-2026-07-07`.
@@ -68,6 +74,33 @@ pub struct CatalogPin {
     pub sha256: String,
     /// Exact size in bytes.
     pub bytes: u64,
+    /// Sidecar assets published on the same release, keyed by asset
+    /// filename (e.g. [`CatalogPin::PART_FREQUENCY_SIDECAR`]). Each is
+    /// pinned exactly like the catalog: url + sha256 + exact byte size, and
+    /// [`Fetcher`](crate::fetch::Fetcher) verifies all three before a
+    /// sidecar becomes visible. Absent in pins cut before sidecars existed,
+    /// which parse with an empty map.
+    #[serde(default)]
+    pub sidecars: BTreeMap<String, AssetFingerprint>,
+}
+
+impl CatalogPin {
+    /// Sidecar filename of the per-part usage projection (`PartFrequency`
+    /// RON: distinct-set counts and quantities per part, all-time and per
+    /// calendar year), generated from the finished catalog by the build.
+    pub const PART_FREQUENCY_SIDECAR: &'static str = "part_frequency.ron";
+
+    /// Sidecar filename of the color-name reference (`Vec<ColorRefEntry>`
+    /// RON keyed by LDraw color code) the catalog was built with — the
+    /// builder's compiled-in file copied out byte-for-byte, so a consumer
+    /// that vendors it (Blockstar) compiles in exactly the reference the
+    /// catalog's `colors` table was written from.
+    pub const COLOR_NAMES_SIDECAR: &'static str = "color_names.ron";
+
+    /// The fingerprint of the sidecar named `name`, if this pin records it.
+    pub fn sidecar(&self, name: &str) -> Option<&AssetFingerprint> {
+        self.sidecars.get(name)
+    }
 }
 
 /// Any pin, shape-detected. Use [`Pin::from_path`] / [`Pin::from_str`] when
@@ -162,7 +195,10 @@ impl Pin {
 
     fn detect(text: &str, path: &str) -> Result<Self, PinError> {
         // Same structural dispatch as the shell `verify` recipe: field
-        // presence, not filename, decides the shape.
+        // presence, not filename, decides the shape. A catalog pin's
+        // `sidecars` map carries per-file `sha256`/`bytes`/`mirror_url`
+        // tuples like a Rebrickable pin does, but never the
+        // `file_fingerprints` key, so it still falls through to Catalog.
         if text.contains("manifest_sha256") {
             parse::<LdrawPin>(text, path).map(Pin::Ldraw)
         } else if text.contains("file_fingerprints") {
