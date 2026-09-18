@@ -19,10 +19,13 @@
 //! below is a persisted value: never renumber, reorder, or reuse one —
 //! only append. This file is vendored byte-identical in blockstar-core and
 //! brickdata's catalog-builder; edit it in one and copy it to the other.
-//! [`taxonomy_fingerprint`] hashes every variant with its value: the
-//! builder stamps it into `meta` under [`TAXONOMY_FINGERPRINT_META_KEY`],
-//! and Blockstar's reader refuses a catalog whose stamp differs from the
-//! fingerprint of its own copy.
+//! [`taxonomy_fingerprint`] hashes every variant with its value, and each
+//! subcategory with its parent category — `category_id` is derived from
+//! [`Subcategory::category`] at write time, so the parent mapping is
+//! persisted data too, not just an in-memory convenience. The builder
+//! stamps the fingerprint into `meta` under
+//! [`TAXONOMY_FINGERPRINT_META_KEY`], and Blockstar's reader refuses a
+//! catalog whose stamp differs from the fingerprint of its own copy.
 
 use serde::{Deserialize, Serialize};
 
@@ -554,23 +557,36 @@ pub const TAXONOMY_FINGERPRINT_META_KEY: &str = "taxonomy_fingerprint";
 
 /// [`taxonomy_fingerprint`] of the taxonomy as declared in this file.
 ///
-/// Changing any discriminant above — or adding or removing a variant —
-/// must change this constant *deliberately*: a catalog stamped with the
+/// Changing any discriminant above — adding or removing a variant, or
+/// moving a subcategory to a different parent category — must change this
+/// constant *deliberately*: a catalog stamped with the
 /// old value stops opening in a reader built from the new one, so the
 /// change has to ship with a new `catalog.sqlite` release. Update it only
 /// by pasting the value the failing `taxonomy_fingerprint_is_pinned` test
 /// reports, in the same commit as the taxonomy change.
-pub const PINNED_TAXONOMY_FINGERPRINT: &str = "4f8338a4ae0598db";
+pub const PINNED_TAXONOMY_FINGERPRINT: &str = "62d8bb0b82a36200";
 
-/// Canonical text the fingerprint hashes: one `Kind:Name=value` line per
-/// variant, all categories first, each list in discriminant order.
+/// Canonical text the fingerprint hashes: one line per variant, all
+/// categories first, each list in discriminant order.
+///
+/// Category lines are `Category:Name=value`. Subcategory lines carry their
+/// parent too — `Subcategory:Name=value@Parent=value` — because
+/// `ldraw_part` persists *both* ids, and `category_id` is derived from
+/// [`Subcategory::category`] at write time. Without the parent in here, a
+/// subcategory could be moved to a different category with every name and
+/// discriminant unchanged: the fingerprint would match, while every
+/// `category_id` written for that subcategory silently changed meaning.
 fn taxonomy_manifest() -> String {
     let mut text = String::new();
     for category in Category::all() {
         text.push_str(&format!("Category:{category:?}={}\n", category as u16));
     }
     for sub in Subcategory::all() {
-        text.push_str(&format!("Subcategory:{sub:?}={}\n", sub as u16));
+        let parent = sub.category();
+        text.push_str(&format!(
+            "Subcategory:{sub:?}={}@{parent:?}={}\n",
+            sub as u16, parent as u16
+        ));
     }
     text
 }
@@ -1016,9 +1032,31 @@ mod tests {
     fn taxonomy_manifest_lists_every_variant_with_its_value() {
         let manifest = taxonomy_manifest();
         assert!(manifest.starts_with("Category:Bricks=0\nCategory:Plates=1\n"));
-        assert!(manifest.contains("\nCategory:Other=11\nSubcategory:Bricks=0\n"));
-        assert!(manifest.ends_with("Subcategory:Other=86\n"));
+        assert!(manifest.contains("\nCategory:Other=11\nSubcategory:Bricks=0@Bricks=0\n"));
+        assert!(manifest.ends_with("Subcategory:Other=86@Other=11\n"));
         assert_eq!(manifest.lines().count(), 12 + 87);
+    }
+
+    /// Every subcategory line carries its parent, so a reparenting shows up
+    /// in the fingerprint. `ldraw_part` persists `category_id` derived from
+    /// `Subcategory::category()`, which makes the mapping on-disk data.
+    #[test]
+    fn taxonomy_manifest_pins_each_subcategory_to_its_parent() {
+        let manifest = taxonomy_manifest();
+        for sub in Subcategory::all() {
+            let parent = sub.category();
+            let line = format!(
+                "Subcategory:{sub:?}={}@{parent:?}={}\n",
+                sub as u16, parent as u16
+            );
+            assert!(
+                manifest.contains(&line),
+                "manifest is missing the parent-pinned line {line:?}",
+            );
+        }
+        // A leaf whose parent is not inferable from its name: catches a
+        // manifest that only ever echoed the subcategory back at itself.
+        assert!(manifest.contains("Subcategory:Dolls=43@Minifigs=6\n"));
     }
 
     /// Reference vectors for FNV-1a 64 (empty input and "a").
