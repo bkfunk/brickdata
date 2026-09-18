@@ -14,7 +14,10 @@
 //!
 //! The reference itself is refreshed via the builder's `refresh-color-names`
 //! subcommand — a rare, explicit, API-using path. The committed RON file is
-//! the routine build's only color input.
+//! the routine build's only color input, and the build copies it out
+//! verbatim ([`COLOR_NAMES_RON`]) as the `color_names.ron` sidecar next to
+//! `catalog.sqlite`, so the published reference is by construction the one
+//! the catalog was built with (bkfunk/blockstar#143).
 //!
 //! The RON file enables the `implicit_some` extension so present name fields
 //! can be written as bare strings (`bricklink: "Red"`) rather than
@@ -112,11 +115,17 @@ impl ColorReference {
     }
 }
 
+/// The committed color reference, exactly as compiled into this binary.
+/// The single `include_str!` of the file: [`color_reference`] parses it, and
+/// the catalog `build` writes these same bytes out as the `color_names.ron`
+/// sidecar, so the two can never diverge.
+pub const COLOR_NAMES_RON: &str = include_str!("color_names.ron");
+
 /// Get the static color reference, parsed lazily from the bundled RON file.
 pub fn color_reference() -> &'static ColorReference {
     static REF: OnceLock<ColorReference> = OnceLock::new();
     REF.get_or_init(|| {
-        let entries: Vec<ColorRefEntry> = ron::from_str(include_str!("color_names.ron"))
+        let entries: Vec<ColorRefEntry> = ron::from_str(COLOR_NAMES_RON)
             .expect("color_names.ron should parse — included at compile time");
         ColorReference::from_entries(entries)
     })

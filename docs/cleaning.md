@@ -41,7 +41,11 @@ bag for search. `data/rebrickable/color_excludes.ron` removes colors that
 must not surface. Output is the compiled-in
 `crates/catalog-builder/src/core/color_names.ron`; at build time
 `src/build/inventory.rs` uses it to translate Rebrickable color ids to
-LDraw codes.
+LDraw codes, `src/build/xref.rs` writes it out as the `colors` table, and
+`src/build.rs` copies the compiled-in bytes verbatim to a `color_names.ron`
+sidecar next to `catalog.sqlite` — published and pinned with the release,
+so a consumer that compiles the reference in (Blockstar, blockstar#143)
+can vendor exactly the file the catalog was built with.
 
 ## Inventory cleaning
 
@@ -83,10 +87,12 @@ those with external ids), same ladder, NULL when unresolvable.
 
 ## Determinism
 
-Identical pins produce byte-identical `catalog.sqlite` (integration test
-`build_is_deterministic`). The build stages
+Identical pins produce byte-identical `catalog.sqlite` and byte-identical
+`part_frequency.ron` / `color_names.ron` sidecars (integration test
+`build_is_deterministic` hashes all three). The build stages
 into `<out>.tmp`, fsyncs, and atomically renames, so a failed build never
 leaves a half-written DB; `build_status = 'complete'` is the very last
-`meta` write. Inputs are fetched through a sha256-verified
-content-addressed cache (`brickdata::Fetcher`), so the bytes are the
-pin's or the build fails.
+`meta` write. The sidecars are written the same way (temp sibling +
+fsync + rename) after the DB is in place. Inputs are fetched through a
+sha256-verified content-addressed cache (`brickdata::Fetcher`), so the
+bytes are the pin's or the build fails.

@@ -120,3 +120,114 @@ fn all_repo_pins_parse() {
     }
     assert!(parsed >= 3, "expected at least 3 repo pins, found {parsed}");
 }
+
+// ── Catalog sidecars ────────────────────────────────────────────────────
+
+/// Blockstar's checked-in `external-data/catalog/catalog-snapshot.ron`,
+/// verbatim: a catalog pin cut before sidecars existed, so it has no
+/// `sidecars` field at all. It must keep parsing unchanged.
+const PRE_SIDECAR_CATALOG_PIN: &str = r#"// brickdata built-catalog pin.
+(
+  mirror_tag: "catalog-2026-07-19a",
+  asset_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-07-19a/catalog.sqlite",
+  sha256: "79d2356827710537101d6c48d335d205663a4ab18e26ae6a25306eec13461c30",
+  bytes: 88342528,
+)
+"#;
+
+/// Exactly what `just publish-catalog` writes (captured from a run of the
+/// recipe with the release/upload helpers stubbed out): the catalog triple
+/// plus a `sidecars` map keyed by asset filename, each entry the same
+/// `(sha256, bytes, mirror_url)` tuple the Rebrickable pins use.
+const CATALOG_PIN_WITH_SIDECARS: &str = r#"// brickdata built-catalog pin.
+(
+  mirror_tag: "catalog-2026-09-16",
+  asset_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-09-16/catalog.sqlite",
+  sha256: "5f4153cb90540859b7da97328c900e2d36002e61890a731c4ad01b624a9a5a9a",
+  bytes: 20,
+  sidecars: {
+    "part_frequency.ron": (sha256: "60aa5a84772a8955c03633987a97e82d37283495156ea2d2225ba64460ec2d3a", bytes: 25, mirror_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-09-16/part_frequency.ron"),
+    "color_names.ron": (sha256: "2f554eda7b99c60fe75f3689c13d1085b4dfdf906ba4b1f5960dfba0698270ac", bytes: 29, mirror_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-09-16/color_names.ron"),
+  },
+)
+"#;
+
+#[test]
+fn catalog_pin_without_sidecars_field_parses_with_an_empty_map() {
+    let pin = CatalogPin::from_ron_str(PRE_SIDECAR_CATALOG_PIN).unwrap();
+    assert_eq!(pin.mirror_tag, "catalog-2026-07-19a");
+    assert_eq!(pin.bytes, 88342528);
+    assert!(pin.sidecars.is_empty());
+    assert!(pin.sidecar(CatalogPin::PART_FREQUENCY_SIDECAR).is_none());
+    assert!(pin.sidecar(CatalogPin::COLOR_NAMES_SIDECAR).is_none());
+}
+
+#[test]
+fn catalog_pin_with_sidecars_parses_the_shape_publish_catalog_writes() {
+    let pin = CatalogPin::from_ron_str(CATALOG_PIN_WITH_SIDECARS).unwrap();
+    assert_eq!(pin.mirror_tag, "catalog-2026-09-16");
+    assert_eq!(
+        pin.sha256,
+        "5f4153cb90540859b7da97328c900e2d36002e61890a731c4ad01b624a9a5a9a"
+    );
+    assert_eq!(pin.bytes, 20);
+    assert_eq!(pin.sidecars.len(), 2);
+
+    let freq = pin
+        .sidecar(CatalogPin::PART_FREQUENCY_SIDECAR)
+        .expect("part_frequency.ron pinned");
+    assert_eq!(
+        freq.sha256,
+        "60aa5a84772a8955c03633987a97e82d37283495156ea2d2225ba64460ec2d3a"
+    );
+    assert_eq!(freq.bytes, 25);
+    assert_eq!(
+        freq.mirror_url,
+        "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-09-16/part_frequency.ron"
+    );
+
+    let colors = pin
+        .sidecar(CatalogPin::COLOR_NAMES_SIDECAR)
+        .expect("color_names.ron pinned");
+    assert_eq!(colors.bytes, 29);
+    assert!(
+        colors
+            .mirror_url
+            .ends_with("/catalog-2026-09-16/color_names.ron")
+    );
+
+    // The sidecars are keyed by the well-known filenames the build writes.
+    assert_eq!(
+        pin.sidecars.keys().collect::<Vec<_>>(),
+        ["color_names.ron", "part_frequency.ron"]
+    );
+}
+
+#[test]
+fn catalog_pin_round_trips_through_ron_with_and_without_sidecars() {
+    for text in [PRE_SIDECAR_CATALOG_PIN, CATALOG_PIN_WITH_SIDECARS] {
+        let pin = CatalogPin::from_ron_str(text).unwrap();
+        // Serializing always emits the map (empty or not); that is acceptable
+        // — the shell recipe is the pin *writer*, this crate only reads — and
+        // the emitted text must parse back to the same pin.
+        let serialized = ron::to_string(&pin).unwrap();
+        assert!(serialized.contains("sidecars"), "{serialized}");
+        let back = CatalogPin::from_ron_str(&serialized).unwrap();
+        assert_eq!(back, pin);
+    }
+}
+
+#[test]
+fn shape_detection_routes_a_catalog_pin_with_sidecars_to_catalog() {
+    // The sidecar tuples look like a Rebrickable pin's per-file entries, but
+    // the structural dispatch keys on `file_fingerprints` / `manifest_sha256`
+    // presence, neither of which a catalog pin has.
+    match Pin::from_ron_str(CATALOG_PIN_WITH_SIDECARS).unwrap() {
+        Pin::Catalog(pin) => assert_eq!(pin.sidecars.len(), 2),
+        other => panic!("expected Pin::Catalog, got {other:?}"),
+    }
+    assert!(matches!(
+        Pin::from_ron_str(PRE_SIDECAR_CATALOG_PIN).unwrap(),
+        Pin::Catalog(_)
+    ));
+}

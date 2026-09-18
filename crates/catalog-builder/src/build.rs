@@ -16,17 +16,24 @@
 //! 5. Finalize: the `part` view + `part_fts` full-text index, `ANALYZE`/
 //!    `VACUUM`, and `meta.build_status = 'complete'` as the very last write
 //!    (so a half-built DB is detectable by a missing/non-`complete` status).
+//! 6. Sidecars, written next to the finished DB: `part_frequency.ron` (a
+//!    pure projection of the committed DB) and `color_names.ron` (the
+//!    color reference this builder compiled in, copied out byte-for-byte).
 //!
 //! The output is a read-only SQLite DB published as a `catalog-*` release
-//! asset; consumers query it and never see this builder.
+//! asset together with its sidecars — `just publish-catalog` uploads all
+//! three and pins each one's url + sha256 + size in the catalog pin
+//! (`brickdata::pin::CatalogPin::sidecars`); consumers fetch by pin and
+//! never see this builder.
 
 use anyhow::{Context, Result};
 use brickdata::fetch::{Fetcher, HttpTransport};
-use brickdata::pin::RebrickablePin;
+use brickdata::pin::{CatalogPin, RebrickablePin};
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::core::colors;
 use crate::ldraw_part;
 use crate::refresh_parts::RbCrossRefPin;
 use crate::util;
@@ -160,14 +167,30 @@ pub fn run_with(
 
     // Sidecar: project the finished DB into part_frequency.ron next to it, so
     // consumers that only need per-part usage figures needn't open the full
-    // catalog. A pure read of the committed DB.
-    let freq_path = out.with_file_name("part_frequency.ron");
+    // catalog. A pure read of the committed DB. The filename is the pin's
+    // well-known sidecar key, so publisher and consumer can't drift.
+    let freq_path = out.with_file_name(CatalogPin::PART_FREQUENCY_SIDECAR);
     // Read-only so generation can't create a journal/WAL file next to the
     // published DB or take a write lock — a genuinely pure read of the artifact.
     let conn = Connection::open_with_flags(out, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
         .with_context(|| format!("reopen {} read-only", out.display()))?;
     let parts = part_frequency::generate(&conn, &freq_path)?;
     tracing::info!("wrote {} ({parts} parts)", freq_path.display());
+
+    // Sidecar: the color-name reference this builder compiled in, copied out
+    // byte-for-byte. The `colors` table above was written from the very same
+    // `include_str!`, so the published file is by construction the reference
+    // the catalog was built with — a consumer that vendors it (Blockstar,
+    // bkfunk/blockstar#143) compiles in exactly what the DB encodes. Same
+    // atomic write as the other sidecar, so a crash never leaves a torn file.
+    let colors_path = out.with_file_name(CatalogPin::COLOR_NAMES_SIDECAR);
+    util::atomic_write(&colors_path, colors::COLOR_NAMES_RON.as_bytes())
+        .with_context(|| format!("write sidecar {}", colors_path.display()))?;
+    tracing::info!(
+        "wrote {} ({} bytes)",
+        colors_path.display(),
+        colors::COLOR_NAMES_RON.len()
+    );
     Ok(())
 }
 

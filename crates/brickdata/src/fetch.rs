@@ -8,6 +8,11 @@
 //!
 //! Verification failures are hard errors — there is no "keep the bytes
 //! anyway" path.
+//!
+//! Catalog releases carry sidecar assets next to `catalog.sqlite` (see
+//! [`CatalogPin::sidecars`]); [`Fetcher::fetch_catalog_sidecar`] and
+//! [`Fetcher::fetch_catalog_sidecars`] fetch those through exactly the same
+//! verify-then-cache path as the catalog itself.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -16,7 +21,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::pin::{CatalogPin, LdrawPin, RebrickablePin};
+use crate::pin::{AssetFingerprint, CatalogPin, LdrawPin, RebrickablePin};
 
 /// Error from a [`Transport`] implementation.
 #[derive(Debug, thiserror::Error)]
@@ -96,6 +101,14 @@ pub enum FetchError {
     /// The caller-supplied expected hash is not a 64-char hex string.
     #[error("expected sha256 is not lowercase hex: {0:?}")]
     BadExpectedHash(String),
+    /// A catalog sidecar was requested by a name the pin does not record.
+    #[error("catalog pin {mirror_tag} records no sidecar named {name:?}")]
+    NoSuchSidecar {
+        /// The catalog release tag the pin records.
+        mirror_tag: String,
+        /// The sidecar filename that was requested.
+        name: String,
+    },
     /// Reading or writing the cache failed.
     #[error("cache I/O error at {path}: {source}")]
     Io {
@@ -205,13 +218,7 @@ impl<T: Transport> Fetcher<T> {
         &self,
         pin: &RebrickablePin,
     ) -> Result<BTreeMap<String, PathBuf>, FetchError> {
-        pin.file_fingerprints
-            .iter()
-            .map(|(name, fp)| {
-                let path = self.fetch_verified(&fp.mirror_url, &fp.sha256, Some(fp.bytes))?;
-                Ok((name.clone(), path))
-            })
-            .collect()
+        self.fetch_fingerprints(&pin.file_fingerprints)
     }
 
     /// Fetch an LDraw pin's merged-tree zip and content manifest.
@@ -222,9 +229,53 @@ impl<T: Transport> Fetcher<T> {
         })
     }
 
-    /// Fetch a catalog pin's built `catalog.sqlite`.
+    /// Fetch a catalog pin's built `catalog.sqlite` (not its sidecars — see
+    /// [`Fetcher::fetch_catalog_sidecar`] / [`Fetcher::fetch_catalog_sidecars`]).
     pub fn fetch_catalog(&self, pin: &CatalogPin) -> Result<PathBuf, FetchError> {
         self.fetch_verified(&pin.asset_url, &pin.sha256, Some(pin.bytes))
+    }
+
+    /// Fetch one sidecar of a catalog pin by asset filename (e.g.
+    /// [`CatalogPin::PART_FREQUENCY_SIDECAR`]), with the same mandatory
+    /// sha256 + byte-size verification and content-addressed caching as the
+    /// catalog itself. A name the pin does not record is
+    /// [`FetchError::NoSuchSidecar`], never a panic.
+    pub fn fetch_catalog_sidecar(
+        &self,
+        pin: &CatalogPin,
+        name: &str,
+    ) -> Result<PathBuf, FetchError> {
+        let fp = pin.sidecar(name).ok_or_else(|| FetchError::NoSuchSidecar {
+            mirror_tag: pin.mirror_tag.clone(),
+            name: name.to_string(),
+        })?;
+        self.fetch_fingerprint(fp)
+    }
+
+    /// Fetch every sidecar a catalog pin records. Returns sidecar filename →
+    /// cached path; empty (not an error) for a pin cut before sidecars
+    /// existed.
+    pub fn fetch_catalog_sidecars(
+        &self,
+        pin: &CatalogPin,
+    ) -> Result<BTreeMap<String, PathBuf>, FetchError> {
+        self.fetch_fingerprints(&pin.sidecars)
+    }
+
+    /// Fetch one pinned asset, verifying both its sha256 and exact size.
+    fn fetch_fingerprint(&self, fp: &AssetFingerprint) -> Result<PathBuf, FetchError> {
+        self.fetch_verified(&fp.mirror_url, &fp.sha256, Some(fp.bytes))
+    }
+
+    /// Fetch a whole name → fingerprint map, preserving the names as keys.
+    fn fetch_fingerprints(
+        &self,
+        fingerprints: &BTreeMap<String, AssetFingerprint>,
+    ) -> Result<BTreeMap<String, PathBuf>, FetchError> {
+        fingerprints
+            .iter()
+            .map(|(name, fp)| Ok((name.clone(), self.fetch_fingerprint(fp)?)))
+            .collect()
     }
 
     /// Re-hash an existing cache entry; discard it if corrupted.
