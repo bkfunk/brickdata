@@ -222,7 +222,7 @@ fn build_creates_db_with_meta_rows() {
     );
 
     let meta = read_meta(&out);
-    assert_eq!(meta.get("schema_version").map(String::as_str), Some("3"));
+    assert_eq!(meta.get("schema_version").map(String::as_str), Some("4"));
     assert_eq!(
         meta.get("snapshot_date").map(String::as_str),
         Some("2026-05-27")
@@ -236,6 +236,22 @@ fn build_creates_db_with_meta_rows() {
         meta.get("builder_version").map(String::as_str),
         Some(env!("CARGO_PKG_VERSION"))
     );
+
+    // #19: classifier ran, thresholds + per-type counts recorded.
+    assert_eq!(
+        meta.get("set_class_distinct_ceiling").map(String::as_str),
+        Some("14")
+    );
+    assert!(
+        meta.contains_key("set_type_build_count"),
+        "per-type set counts should be stamped"
+    );
+    // The fixture has real inventories, so at least one build must exist.
+    let builds: i64 = meta
+        .get("set_type_build_count")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    assert!(builds > 0, "fixture should yield at least one build set");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -262,6 +278,15 @@ fn build_emits_part_frequency_sidecar_next_to_the_db() {
 
     let text = std::fs::read_to_string(&sidecar).unwrap();
     assert!(text.contains("PartFrequency("), "{text}");
+    // #19: the sidecar now reports builds, not raw sets.
+    assert!(
+        text.contains("builds:"),
+        "sidecar should carry build counts:\n{text}"
+    );
+    assert!(
+        text.contains("build_qty:"),
+        "sidecar should carry build quantities"
+    );
     // Provenance mirrors the DB's own meta table.
     assert!(
         text.contains("generated_from: \"rebrickable-2026-05-27\","),

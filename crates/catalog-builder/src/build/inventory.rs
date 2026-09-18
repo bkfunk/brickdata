@@ -47,7 +47,7 @@
 //! Targeted exceptions to this blanket rule belong to the manual-corrections
 //! layer (#103).
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
 use crate::core::colors::color_reference;
@@ -134,6 +134,34 @@ impl InventoryStats {
     }
 }
 
+/// A set's true inventory shape, from the raw `inventory_parts` rows **before**
+/// any part_num → LDraw mapping drops anything — the honest signal
+/// [`set_classify`](super::set_classify) needs. Computing it pre-mapping keeps a
+/// small licensed set full of un-mapped printed/minifig parts from looking like
+/// a pack (its distinct molds would otherwise be undercounted).
+pub(crate) struct SetInventoryCounts {
+    /// Distinct raw `part_num` molds in the set (spare or not).
+    pub distinct_part_count: u32,
+    /// Σ non-spare `quantity` across the set's raw inventory.
+    pub pieces_main: i64,
+}
+
+/// Fold one raw inventory row into the per-set shape accumulator: record its
+/// mold, and add its quantity to the main total unless it is a spare.
+fn record_set_shape(
+    shape: &mut HashMap<u32, (HashSet<String>, i64)>,
+    set_id: u32,
+    part_num: &str,
+    quantity: i64,
+    is_spare: bool,
+) {
+    let entry = shape.entry(set_id).or_default();
+    entry.0.insert(part_num.to_owned());
+    if !is_spare {
+        entry.1 += quantity;
+    }
+}
+
 /// Expected `inventory_parts.csv` header. Pinned so a re-pinned snapshot that
 /// reorders or inserts a column fails loudly instead of being mis-read by the
 /// fixed column indices below (shared with [`rb_ingest::validate_header`]).
@@ -194,7 +222,7 @@ pub(crate) fn build(
     conn: &Connection,
     metadata_cache: &Path,
     resolver: &PartResolver<'_>,
-) -> Result<InventoryStats> {
+) -> Result<(InventoryStats, HashMap<u32, SetInventoryCounts>)> {
     create_tables(conn)?;
 
     let colors = color_reference();
@@ -209,6 +237,9 @@ pub(crate) fn build(
     let mut quantities: BTreeMap<(String, u32, u32), (i64, i64)> = BTreeMap::new();
     // design_id → (year_min, year_max) over all appearances with a known year.
     let mut years: BTreeMap<String, (i64, i64)> = BTreeMap::new();
+    // Per-set raw shape for classification (#19): distinct molds (pre-mapping)
+    // and non-spare piece total, keyed by the dense set_id.
+    let mut set_shape: HashMap<u32, (HashSet<String>, i64)> = HashMap::new();
 
     let mut stats = InventoryStats::default();
 
@@ -228,6 +259,15 @@ pub(crate) fn build(
             stats.rows_skipped_no_set += 1;
             continue;
         };
+        // Record the raw (pre-mapping) shape before any unmapped-part/color drop
+        // below, so distinct_part_count counts every mold Rebrickable lists.
+        record_set_shape(
+            &mut set_shape,
+            set_id,
+            row.part_num,
+            row.quantity,
+            row.is_spare,
+        );
         let Some(resolved) = resolver.translate(row.part_num) else {
             stats.rows_skipped_unmapped_part += 1;
             continue;
@@ -277,7 +317,20 @@ pub(crate) fn build(
 
     stats.color_set_rows = write_color_set(conn, &quantities, &set_to_year)?;
     stats.summary_count = write_summary(conn, &quantities, &years)?;
-    Ok(stats)
+
+    let set_counts: HashMap<u32, SetInventoryCounts> = set_shape
+        .into_iter()
+        .map(|(set_id, (molds, pieces_main))| {
+            (
+                set_id,
+                SetInventoryCounts {
+                    distinct_part_count: u32::try_from(molds.len()).expect("mold count fits u32"),
+                    pieces_main,
+                },
+            )
+        })
+        .collect();
+    Ok((stats, set_counts))
 }
 
 /// Create the two derived tables from their [`TableSpec`]s (same schema-from-a-
@@ -515,5 +568,23 @@ mod tests {
         assert_eq!(q[&("3023".into(), 4, 2)], (1, 0));
         assert_eq!(q[&("3001".into(), 4, 1)], (2, 1));
         assert_eq!(q[&("3626".into(), 15, 1)], (1, 0));
+    }
+
+    #[test]
+    fn record_set_shape_counts_distinct_molds_and_excludes_spares() {
+        let mut shape: HashMap<u32, (HashSet<String>, i64)> = HashMap::new();
+        // Two distinct molds in set 7; a repeated mold doesn't double-count.
+        record_set_shape(&mut shape, 7, "3001", 4, false);
+        record_set_shape(&mut shape, 7, "3002", 2, false);
+        record_set_shape(&mut shape, 7, "3001", 9, false);
+        // A spare adds a distinct mold but no main pieces.
+        record_set_shape(&mut shape, 7, "3003", 5, true);
+        let (molds, pieces_main) = &shape[&7];
+        assert_eq!(molds.len(), 3, "3001/3002/3003 are three distinct molds");
+        assert_eq!(
+            *pieces_main,
+            4 + 2 + 9,
+            "spare quantity excluded from pieces_main"
+        );
     }
 }
