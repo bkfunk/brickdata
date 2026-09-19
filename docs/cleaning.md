@@ -45,8 +45,13 @@ uses it to translate Rebrickable color ids to LDraw codes.
 That file is also a **published artifact**: Blockstar vendors it into
 `blockstar-core` with `just vendor-color-names` (blockstar#143), which is
 why it sits under `data/derived/` rather than inside the builder crate.
-Of the 275 rows in the Rebrickable listing, the 169 carrying an LDraw
-external id survive; the rest have no LDraw equivalent and drop out.
+Rows drop out for two different reasons, so three counts are worth
+keeping apart. Of the 275 rows in the Rebrickable listing, 169 carry an
+LDraw external id; the other 106 have no LDraw equivalent at all and are
+skipped. `color_excludes.ron` then removes two of those 169 — the `-1`
+"[Unknown]" sentinel, and `1081` ("Rust Orange"), which claims LDraw code
+216 already held by `216` ("Rust") — leaving the **167 rows** in the
+published artifact.
 
 ## Inventory cleaning
 

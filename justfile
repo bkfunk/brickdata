@@ -216,9 +216,10 @@ verify pin:
 # Refresh the Rebrickable colors snapshot and regenerate the published
 # color reference from `snapshot ∖ excludes`:
 #
-#   data/rebrickable/colors.json           cached API listing (275 rows)
-#   ∖ data/rebrickable/color_excludes.ron  permanent exclusions (curation)
-#   → data/derived/color_names.ron         published artifact (169 rows)
+#   data/rebrickable/colors.json           cached API listing (275 rows,
+#                                          169 of them with an LDraw code)
+#   ∖ data/rebrickable/color_excludes.ron  permanent exclusions (2 curated)
+#   → data/derived/color_names.ron         published artifact (167 rows)
 #
 # Explicit and rare — run it when LEGO introduces a color, Rebrickable
 # renames one, or you edit color_excludes.ron. Both writes are idempotent:
