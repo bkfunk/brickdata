@@ -116,8 +116,11 @@ impl ColorReference {
 pub fn color_reference() -> &'static ColorReference {
     static REF: OnceLock<ColorReference> = OnceLock::new();
     REF.get_or_init(|| {
-        let entries: Vec<ColorRefEntry> = ron::from_str(include_str!("color_names.ron"))
-            .expect("color_names.ron should parse — included at compile time");
+        let entries: Vec<ColorRefEntry> = ron::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../data/derived/color_names.ron"
+        )))
+        .expect("color_names.ron should parse — included at compile time");
         ColorReference::from_entries(entries)
     })
 }
@@ -140,5 +143,26 @@ mod tests {
         assert_eq!(red.names.lego.as_deref(), Some("Bright red"));
         assert_eq!(red.names.bricklink.as_deref(), Some("Red"));
         assert_eq!(red.names.rebrickable.as_deref(), Some("Red"));
+    }
+
+    /// `data/derived/color_names.ron` is a published artifact: Blockstar's
+    /// `just vendor-color-names` fetches this exact path and compiles the
+    /// result into `blockstar-core` (blockstar#143).
+    ///
+    /// `include_str!` above already fails the build if the file disappears,
+    /// but it would happily follow the file to a new location if someone
+    /// updated the include and nothing else. This test names the path
+    /// independently, so moving the artifact fails here with an explanation
+    /// rather than silently breaking a consumer in another repo.
+    #[test]
+    fn published_artifact_stays_at_its_documented_path() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/derived/color_names.ron");
+        assert!(
+            path.is_file(),
+            "data/derived/color_names.ron is missing. It is a published \
+             artifact consumed by Blockstar (blockstar#143); if you moved it, \
+             update Blockstar's vendor recipe and this test together."
+        );
     }
 }

@@ -38,10 +38,20 @@ is an anomaly: logged and skipped, never guessed.
 LEGO/BrickLink display names; folds every other name string Rebrickable
 knows (across systems and history) into a deduplicated, sorted `aliases`
 bag for search. `data/rebrickable/color_excludes.ron` removes colors that
-must not surface. Output is the compiled-in
-`crates/catalog-builder/src/core/color_names.ron`; at build time
-`src/build/inventory.rs` uses it to translate Rebrickable color ids to
-LDraw codes.
+must not surface. Output is `data/derived/color_names.ron`, compiled into
+the builder via `include_str!`; at build time `src/build/inventory.rs`
+uses it to translate Rebrickable color ids to LDraw codes.
+
+That file is also a **published artifact**: Blockstar vendors it into
+`blockstar-core` with `just vendor-color-names` (blockstar#143), which is
+why it sits under `data/derived/` rather than inside the builder crate.
+Rows drop out for two different reasons, so three counts are worth
+keeping apart. Of the 275 rows in the Rebrickable listing, 169 carry an
+LDraw external id; the other 106 have no LDraw equivalent at all and are
+skipped. `color_excludes.ron` then removes two of those 169 — the `-1`
+"[Unknown]" sentinel, and `1081` ("Rust Orange"), which claims LDraw code
+216 already held by `216` ("Rust") — leaving the **167 rows** in the
+published artifact.
 
 ## Inventory cleaning
 

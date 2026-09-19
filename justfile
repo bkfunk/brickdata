@@ -212,3 +212,47 @@ verify pin:
         done
     fi
     echo "verify: all assets match {{pin}}" >&2
+
+# Refresh the Rebrickable colors snapshot and regenerate the published
+# color reference from `snapshot ∖ excludes`:
+#
+#   data/rebrickable/colors.json           cached API listing (275 rows,
+#                                          169 of them with an LDraw code)
+#   ∖ data/rebrickable/color_excludes.ron  permanent exclusions (2 curated)
+#   → data/derived/color_names.ron         published artifact (167 rows)
+#
+# Explicit and rare — run it when LEGO introduces a color, Rebrickable
+# renames one, or you edit color_excludes.ron. Both writes are idempotent:
+# the snapshot is compared semantically and the .ron byte-for-byte, so an
+# unchanged upstream produces zero file writes.
+#
+# data/derived/color_names.ron is CONSUMED BY BLOCKSTAR, which vendors it
+# into blockstar-core via `just vendor-color-names` (blockstar#143). Moving
+# or renaming it breaks that consumer.
+#
+# Needs a Rebrickable API key, from $REBRICKABLE_API_KEY or the macOS
+# keychain. Add --dry-run to log what would change without writing:
+#   just refresh-color-names --dry-run
+refresh-color-names *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    key="${REBRICKABLE_API_KEY:-}"
+    if [ -z "$key" ] && command -v security >/dev/null 2>&1; then
+        key="$(security find-generic-password -a brickdata -s brickdata-rebrickable -w 2>/dev/null \
+            || security find-generic-password -a blockstar -s blockstar-rebrickable -w 2>/dev/null \
+            || true)"
+    fi
+    if [ -z "$key" ]; then
+        cat >&2 <<'EOF'
+
+    error: no REBRICKABLE_API_KEY available.
+
+      .env:    echo REBRICKABLE_API_KEY=ck_xxx > .env
+      inline:  REBRICKABLE_API_KEY=ck_xxx just refresh-color-names
+      keychain: security add-generic-password -a brickdata \
+                  -s brickdata-rebrickable -w ck_xxx
+
+    EOF
+        exit 1
+    fi
+    REBRICKABLE_API_KEY="$key" cargo run --release -p brickdata-catalog-builder -- refresh-color-names {{args}}
