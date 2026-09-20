@@ -231,18 +231,19 @@ verify pin:
         verify_manifest "$work/tree" "$work/manifest.tsv"
         log "OK   ldraw merged tree matches manifest"
     elif grep -q 'file_fingerprints' "{{pin}}"; then
-        # Rebrickable-style: one (sha256, bytes, mirror_url) tuple per file.
-        # Read matches into an array first so a per-file failure can exit the
-        # recipe (a `grep | while` subshell could not).
+        # Rebrickable-style: one (sha256, bytes, mirror_url) tuple per file,
+        # each checked for hash AND size — `Fetcher::fetch_rebrickable` passes
+        # `Some(fp.bytes)` down to `fetch_verified`, so a pin this recipe
+        # accepted while the Rust fetcher rejected it would be the worse of
+        # the two answers. Read matches into an array first so a per-file
+        # failure can exit the recipe (a `grep | while` subshell could not).
         mapfile -t lines < <(grep -oE '\(sha256: "[0-9a-f]+", bytes: [0-9]+, mirror_url: "[^"]+"\)' "{{pin}}")
         [ "${#lines[@]}" -gt 0 ] || die "no recognizable file entries in {{pin}}"
         for line in "${lines[@]}"; do
             sum=$(sed -E 's/.*sha256: "([0-9a-f]+)".*/\1/' <<<"$line")
+            nbytes=$(sed -E 's/.*bytes: ([0-9]+).*/\1/' <<<"$line")
             url=$(sed -E 's/.*mirror_url: "([^"]+)".*/\1/' <<<"$line")
-            f="$work/$(basename "$url")"
-            download "$url" "$f"
-            got="$(sha256_file "$f")"
-            [ "$got" = "$sum" ] || die "FAIL $(basename "$url"): $got != $sum"
+            download_verified "$url" "$work/$(basename "$url")" "$sum" "$nbytes"
             log "OK   $(basename "$url")"
         done
     else
