@@ -11,25 +11,41 @@
 //! The classifier is deliberately coarse — it gets the category and the
 //! obvious leaves right and is meant to be refined over time. It is not
 //! a faithful port of the old Godot keyword classifier.
+//!
+//! ## On-disk contract (blockstar#138)
+//!
+//! Both enums are stored in `catalog.sqlite` as their `u16` discriminants
+//! (`category_id` / `subcategory_id` on `ldraw_part`), so every `= N`
+//! below is a persisted value: never renumber, reorder, or reuse one —
+//! only append. This file is vendored byte-identical in blockstar-core and
+//! brickdata's catalog-builder; edit it in one and copy it to the other.
+//! [`taxonomy_fingerprint`] hashes every variant with its value, and each
+//! subcategory with its parent category — `category_id` is derived from
+//! [`Subcategory::category`] at write time, so the parent mapping is
+//! persisted data too, not just an in-memory convenience. The builder
+//! stamps the fingerprint into `meta` under
+//! [`TAXONOMY_FINGERPRINT_META_KEY`], and Blockstar's reader refuses a
+//! catalog whose stamp differs from the fingerprint of its own copy.
 
 use serde::{Deserialize, Serialize};
 
 /// A top-level grouping in the part-library sidebar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[repr(u16)]
 pub enum Category {
-    Bricks,
-    Plates,
-    Tiles,
-    Slopes,
-    Technic,
-    Electronics,
-    Minifigs,
-    ThemeElements,
-    Nature,
-    Buildings,
-    Vehicles,
-    Other,
+    Bricks = 0,
+    Plates = 1,
+    Tiles = 2,
+    Slopes = 3,
+    Technic = 4,
+    Electronics = 5,
+    Minifigs = 6,
+    ThemeElements = 7,
+    Nature = 8,
+    Buildings = 9,
+    Vehicles = 10,
+    Other = 11,
 }
 
 impl Category {
@@ -178,109 +194,209 @@ impl Category {
 /// share the display name "Sports" but live under different categories.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[repr(u16)]
 pub enum Subcategory {
     // Bricks
-    Bricks,
-    BricksModified,
-    BricksAngled,
-    BricksRound,
+    Bricks = 0,
+    BricksModified = 1,
+    BricksAngled = 2,
+    BricksRound = 3,
     // Plates
-    Plates,
-    PlatesModified,
-    PlatesAngled,
-    PlatesRound,
-    PlatesDishes,
-    PlatesBrackets,
-    PlatesBaseplates,
+    Plates = 4,
+    PlatesModified = 5,
+    PlatesAngled = 6,
+    PlatesRound = 7,
+    PlatesDishes = 8,
+    PlatesBrackets = 9,
+    PlatesBaseplates = 10,
     // Tiles
-    Tiles,
-    TilesModified,
-    TilesAngled,
-    TilesRound,
+    Tiles = 11,
+    TilesModified = 12,
+    TilesAngled = 13,
+    TilesRound = 14,
     // Slopes
-    Slopes,
-    SlopesInverted,
-    SlopesModified,
-    SlopesCurved,
+    Slopes = 15,
+    SlopesInverted = 16,
+    SlopesModified = 17,
+    SlopesCurved = 18,
     // Technic
-    TechnicBricks,
-    TechnicPlates,
-    TechnicLiftArms,
-    TechnicAxles,
-    TechnicPins,
-    TechnicLinksAndConnectors,
-    TechnicGearsAndRacks,
-    TechnicFlexible,
-    TechnicPanels,
-    TechnicPneumatic,
-    TechnicChainsConveyorsAndElevators,
-    TechnicOther,
+    TechnicBricks = 19,
+    TechnicPlates = 20,
+    TechnicLiftArms = 21,
+    TechnicAxles = 22,
+    TechnicPins = 23,
+    TechnicLinksAndConnectors = 24,
+    TechnicGearsAndRacks = 25,
+    TechnicFlexible = 26,
+    TechnicPanels = 27,
+    TechnicPneumatic = 28,
+    TechnicChainsConveyorsAndElevators = 29,
+    TechnicOther = 30,
     // Electronics
-    MechanicalMotors,
-    ElectricalMotors,
-    HubsAndPower,
-    Sensors,
-    NonLegoElectronics,
+    MechanicalMotors = 31,
+    ElectricalMotors = 32,
+    HubsAndPower = 33,
+    Sensors = 34,
+    NonLegoElectronics = 35,
     // Minifigs
-    MinifigHeads,
-    MinifigTorsosAndArms,
-    MinifigLegs,
-    MinifigHeadgearAndHair,
-    MinifigWeapons,
-    MinifigAccessoriesAndTools,
-    MinifigSports,
-    Dolls,
-    BionicleAndHeroFactory,
-    Brickheadz,
+    MinifigHeads = 36,
+    MinifigTorsosAndArms = 37,
+    MinifigLegs = 38,
+    MinifigHeadgearAndHair = 39,
+    MinifigWeapons = 40,
+    MinifigAccessoriesAndTools = 41,
+    MinifigSports = 42,
+    Dolls = 43,
+    BionicleAndHeroFactory = 44,
+    Brickheadz = 45,
     // ThemeElements
-    EnergyEffects,
-    Weapons,
-    SailsFlagsAndBanners,
-    BoatingAndPirateElements,
-    ThemeSports,
-    BoxesAndContainers,
-    CurrencyAndTokens,
-    PolesRodsAndAntennae,
-    ThemedBaseplates,
-    OtherThemeElements,
+    EnergyEffects = 46,
+    Weapons = 47,
+    SailsFlagsAndBanners = 48,
+    BoatingAndPirateElements = 49,
+    ThemeSports = 50,
+    BoxesAndContainers = 51,
+    CurrencyAndTokens = 52,
+    PolesRodsAndAntennae = 53,
+    ThemedBaseplates = 54,
+    OtherThemeElements = 55,
     // Nature
-    Animals,
-    AnimalAccessories,
-    Foliage,
-    Flowers,
-    TreesAndTrunks,
-    Landscape,
-    GemsAndMinerals,
-    OtherNatureElements,
+    Animals = 56,
+    AnimalAccessories = 57,
+    Foliage = 58,
+    Flowers = 59,
+    TreesAndTrunks = 60,
+    Landscape = 61,
+    GemsAndMinerals = 62,
+    OtherNatureElements = 63,
     // Buildings
-    BuildingMaterials,
-    WallElements,
-    Doors,
-    WindowFrames,
-    WindowInsertsAndShutters,
-    ExteriorDecoration,
-    InteriorDecoration,
+    BuildingMaterials = 64,
+    WallElements = 65,
+    Doors = 66,
+    WindowFrames = 67,
+    WindowInsertsAndShutters = 68,
+    ExteriorDecoration = 69,
+    InteriorDecoration = 70,
     // Vehicles
-    EnginesAndThrusters,
-    WingsAndFuselages,
-    Cockpits,
-    Fins,
-    Chassis,
-    Windshields,
-    BoatHulls,
-    TrainsGeneral,
-    TrainsTracks,
-    TrainsMechanics,
-    HubsAndWheels,
-    TiresAndTreads,
-    Steering,
-    SuspensionsAndBrakes,
-    OtherVehicle,
+    EnginesAndThrusters = 71,
+    WingsAndFuselages = 72,
+    Cockpits = 73,
+    Fins = 74,
+    Chassis = 75,
+    Windshields = 76,
+    BoatHulls = 77,
+    TrainsGeneral = 78,
+    TrainsTracks = 79,
+    TrainsMechanics = 80,
+    HubsAndWheels = 81,
+    TiresAndTreads = 82,
+    Steering = 83,
+    SuspensionsAndBrakes = 84,
+    OtherVehicle = 85,
     // Other
-    Other,
+    Other = 86,
 }
 
 impl Subcategory {
+    /// Every leaf subcategory, in declaration (= discriminant) order.
+    ///
+    /// An explicit list because stable Rust cannot enumerate an enum's
+    /// variants. Tests check it against the per-category lists in
+    /// [`Category::subcategories`] and against the pinned discriminant
+    /// table, so a variant missing here fails the suite.
+    pub fn all() -> [Subcategory; 87] {
+        use Subcategory::*;
+        [
+            Bricks,
+            BricksModified,
+            BricksAngled,
+            BricksRound,
+            Plates,
+            PlatesModified,
+            PlatesAngled,
+            PlatesRound,
+            PlatesDishes,
+            PlatesBrackets,
+            PlatesBaseplates,
+            Tiles,
+            TilesModified,
+            TilesAngled,
+            TilesRound,
+            Slopes,
+            SlopesInverted,
+            SlopesModified,
+            SlopesCurved,
+            TechnicBricks,
+            TechnicPlates,
+            TechnicLiftArms,
+            TechnicAxles,
+            TechnicPins,
+            TechnicLinksAndConnectors,
+            TechnicGearsAndRacks,
+            TechnicFlexible,
+            TechnicPanels,
+            TechnicPneumatic,
+            TechnicChainsConveyorsAndElevators,
+            TechnicOther,
+            MechanicalMotors,
+            ElectricalMotors,
+            HubsAndPower,
+            Sensors,
+            NonLegoElectronics,
+            MinifigHeads,
+            MinifigTorsosAndArms,
+            MinifigLegs,
+            MinifigHeadgearAndHair,
+            MinifigWeapons,
+            MinifigAccessoriesAndTools,
+            MinifigSports,
+            Dolls,
+            BionicleAndHeroFactory,
+            Brickheadz,
+            EnergyEffects,
+            Weapons,
+            SailsFlagsAndBanners,
+            BoatingAndPirateElements,
+            ThemeSports,
+            BoxesAndContainers,
+            CurrencyAndTokens,
+            PolesRodsAndAntennae,
+            ThemedBaseplates,
+            OtherThemeElements,
+            Animals,
+            AnimalAccessories,
+            Foliage,
+            Flowers,
+            TreesAndTrunks,
+            Landscape,
+            GemsAndMinerals,
+            OtherNatureElements,
+            BuildingMaterials,
+            WallElements,
+            Doors,
+            WindowFrames,
+            WindowInsertsAndShutters,
+            ExteriorDecoration,
+            InteriorDecoration,
+            EnginesAndThrusters,
+            WingsAndFuselages,
+            Cockpits,
+            Fins,
+            Chassis,
+            Windshields,
+            BoatHulls,
+            TrainsGeneral,
+            TrainsTracks,
+            TrainsMechanics,
+            HubsAndWheels,
+            TiresAndTreads,
+            Steering,
+            SuspensionsAndBrakes,
+            OtherVehicle,
+            Other,
+        ]
+    }
+
     /// The parent category this subcategory belongs to.
     pub fn category(self) -> Category {
         use Subcategory::*;
@@ -434,6 +550,64 @@ impl Subcategory {
             Other => "Other",
         }
     }
+}
+
+/// `meta` key under which the catalog builder stamps [`taxonomy_fingerprint`].
+pub const TAXONOMY_FINGERPRINT_META_KEY: &str = "taxonomy_fingerprint";
+
+/// [`taxonomy_fingerprint`] of the taxonomy as declared in this file.
+///
+/// Changing any discriminant above — adding or removing a variant, or
+/// moving a subcategory to a different parent category — must change this
+/// constant *deliberately*: a catalog stamped with the
+/// old value stops opening in a reader built from the new one, so the
+/// change has to ship with a new `catalog.sqlite` release. Update it only
+/// by pasting the value the failing `taxonomy_fingerprint_is_pinned` test
+/// reports, in the same commit as the taxonomy change.
+pub const PINNED_TAXONOMY_FINGERPRINT: &str = "62d8bb0b82a36200";
+
+/// Canonical text the fingerprint hashes: one line per variant, all
+/// categories first, each list in discriminant order.
+///
+/// Category lines are `Category:Name=value`. Subcategory lines carry their
+/// parent too — `Subcategory:Name=value@Parent=value` — because
+/// `ldraw_part` persists *both* ids, and `category_id` is derived from
+/// [`Subcategory::category`] at write time. Without the parent in here, a
+/// subcategory could be moved to a different category with every name and
+/// discriminant unchanged: the fingerprint would match, while every
+/// `category_id` written for that subcategory silently changed meaning.
+fn taxonomy_manifest() -> String {
+    let mut text = String::new();
+    for category in Category::all() {
+        text.push_str(&format!("Category:{category:?}={}\n", category as u16));
+    }
+    for sub in Subcategory::all() {
+        let parent = sub.category();
+        text.push_str(&format!(
+            "Subcategory:{sub:?}={}@{parent:?}={}\n",
+            sub as u16, parent as u16
+        ));
+    }
+    text
+}
+
+/// 64-bit FNV-1a of `bytes`. Dependency-free on purpose: this file is
+/// compiled in two crates and must not pull anything beyond `std` (and
+/// serde) into either.
+fn fnv1a_64(bytes: impl IntoIterator<Item = u8>) -> u64 {
+    const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    bytes.into_iter().fold(OFFSET_BASIS, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
+    })
+}
+
+/// Fingerprint of the taxonomy's on-disk encoding: FNV-1a over
+/// [`taxonomy_manifest`], as 16 lowercase hex digits. Any change to a
+/// variant's name or value changes it; see the module docs for how the
+/// builder and reader use it.
+pub fn taxonomy_fingerprint() -> String {
+    format!("{:016x}", fnv1a_64(taxonomy_manifest().bytes()))
 }
 
 /// Theme keywords that exclude a part from the buildable library.
@@ -699,5 +873,211 @@ mod tests {
         assert!(!is_pickable_type(Some("Part Physical_Colour")));
         // No header line → defer to the description/name heuristics.
         assert!(is_pickable_type(None));
+    }
+    // ---- On-disk contract (blockstar#138) --------------------------------
+    //
+    // The discriminants below are persisted in catalog.sqlite; see the
+    // module docs. A failure in any of these tests means the taxonomy's
+    // encoding moved, which is only ever acceptable together with a new
+    // catalog release and a deliberate update of PINNED_TAXONOMY_FINGERPRINT.
+
+    /// Every `Category` discriminant, pinned value by value.
+    #[test]
+    fn category_discriminants_are_pinned() {
+        let expected: [(Category, u16); 12] = [
+            (Category::Bricks, 0),
+            (Category::Plates, 1),
+            (Category::Tiles, 2),
+            (Category::Slopes, 3),
+            (Category::Technic, 4),
+            (Category::Electronics, 5),
+            (Category::Minifigs, 6),
+            (Category::ThemeElements, 7),
+            (Category::Nature, 8),
+            (Category::Buildings, 9),
+            (Category::Vehicles, 10),
+            (Category::Other, 11),
+        ];
+        for (category, value) in expected {
+            assert_eq!(category as u16, value, "{category:?} discriminant drifted");
+        }
+    }
+
+    /// Every `Subcategory` discriminant, pinned value by value.
+    #[test]
+    fn subcategory_discriminants_are_pinned() {
+        use Subcategory::*;
+        let expected: [(Subcategory, u16); 87] = [
+            (Bricks, 0),
+            (BricksModified, 1),
+            (BricksAngled, 2),
+            (BricksRound, 3),
+            (Plates, 4),
+            (PlatesModified, 5),
+            (PlatesAngled, 6),
+            (PlatesRound, 7),
+            (PlatesDishes, 8),
+            (PlatesBrackets, 9),
+            (PlatesBaseplates, 10),
+            (Tiles, 11),
+            (TilesModified, 12),
+            (TilesAngled, 13),
+            (TilesRound, 14),
+            (Slopes, 15),
+            (SlopesInverted, 16),
+            (SlopesModified, 17),
+            (SlopesCurved, 18),
+            (TechnicBricks, 19),
+            (TechnicPlates, 20),
+            (TechnicLiftArms, 21),
+            (TechnicAxles, 22),
+            (TechnicPins, 23),
+            (TechnicLinksAndConnectors, 24),
+            (TechnicGearsAndRacks, 25),
+            (TechnicFlexible, 26),
+            (TechnicPanels, 27),
+            (TechnicPneumatic, 28),
+            (TechnicChainsConveyorsAndElevators, 29),
+            (TechnicOther, 30),
+            (MechanicalMotors, 31),
+            (ElectricalMotors, 32),
+            (HubsAndPower, 33),
+            (Sensors, 34),
+            (NonLegoElectronics, 35),
+            (MinifigHeads, 36),
+            (MinifigTorsosAndArms, 37),
+            (MinifigLegs, 38),
+            (MinifigHeadgearAndHair, 39),
+            (MinifigWeapons, 40),
+            (MinifigAccessoriesAndTools, 41),
+            (MinifigSports, 42),
+            (Dolls, 43),
+            (BionicleAndHeroFactory, 44),
+            (Brickheadz, 45),
+            (EnergyEffects, 46),
+            (Weapons, 47),
+            (SailsFlagsAndBanners, 48),
+            (BoatingAndPirateElements, 49),
+            (ThemeSports, 50),
+            (BoxesAndContainers, 51),
+            (CurrencyAndTokens, 52),
+            (PolesRodsAndAntennae, 53),
+            (ThemedBaseplates, 54),
+            (OtherThemeElements, 55),
+            (Animals, 56),
+            (AnimalAccessories, 57),
+            (Foliage, 58),
+            (Flowers, 59),
+            (TreesAndTrunks, 60),
+            (Landscape, 61),
+            (GemsAndMinerals, 62),
+            (OtherNatureElements, 63),
+            (BuildingMaterials, 64),
+            (WallElements, 65),
+            (Doors, 66),
+            (WindowFrames, 67),
+            (WindowInsertsAndShutters, 68),
+            (ExteriorDecoration, 69),
+            (InteriorDecoration, 70),
+            (EnginesAndThrusters, 71),
+            (WingsAndFuselages, 72),
+            (Cockpits, 73),
+            (Fins, 74),
+            (Chassis, 75),
+            (Windshields, 76),
+            (BoatHulls, 77),
+            (TrainsGeneral, 78),
+            (TrainsTracks, 79),
+            (TrainsMechanics, 80),
+            (HubsAndWheels, 81),
+            (TiresAndTreads, 82),
+            (Steering, 83),
+            (SuspensionsAndBrakes, 84),
+            (OtherVehicle, 85),
+            (Other, 86),
+        ];
+        for (sub, value) in expected {
+            assert_eq!(sub as u16, value, "{sub:?} discriminant drifted");
+        }
+    }
+
+    /// Both `all()` lists carry discriminants exactly 0, 1, 2, … in order —
+    /// which also means no duplicates and no gaps.
+    #[test]
+    fn discriminants_are_dense_from_zero() {
+        let categories: Vec<u16> = Category::all().iter().map(|c| *c as u16).collect();
+        assert_eq!(
+            categories,
+            (0..Category::all().len() as u16).collect::<Vec<_>>()
+        );
+        let subcategories: Vec<u16> = Subcategory::all().iter().map(|s| *s as u16).collect();
+        assert_eq!(
+            subcategories,
+            (0..Subcategory::all().len() as u16).collect::<Vec<_>>()
+        );
+    }
+
+    /// `Subcategory::all()` and the per-category `subcategories()` lists are
+    /// two spellings of the same tree: same members, same order, each once.
+    #[test]
+    fn all_subcategories_matches_the_category_tree() {
+        let from_tree: Vec<Subcategory> = Category::all()
+            .iter()
+            .flat_map(|category| category.subcategories().iter().copied())
+            .collect();
+        assert_eq!(from_tree, Subcategory::all().to_vec());
+    }
+
+    #[test]
+    fn taxonomy_manifest_lists_every_variant_with_its_value() {
+        let manifest = taxonomy_manifest();
+        assert!(manifest.starts_with("Category:Bricks=0\nCategory:Plates=1\n"));
+        assert!(manifest.contains("\nCategory:Other=11\nSubcategory:Bricks=0@Bricks=0\n"));
+        assert!(manifest.ends_with("Subcategory:Other=86@Other=11\n"));
+        assert_eq!(manifest.lines().count(), 12 + 87);
+    }
+
+    /// Every subcategory line carries its parent, so a reparenting shows up
+    /// in the fingerprint. `ldraw_part` persists `category_id` derived from
+    /// `Subcategory::category()`, which makes the mapping on-disk data.
+    #[test]
+    fn taxonomy_manifest_pins_each_subcategory_to_its_parent() {
+        let manifest = taxonomy_manifest();
+        for sub in Subcategory::all() {
+            let parent = sub.category();
+            let line = format!(
+                "Subcategory:{sub:?}={}@{parent:?}={}\n",
+                sub as u16, parent as u16
+            );
+            assert!(
+                manifest.contains(&line),
+                "manifest is missing the parent-pinned line {line:?}",
+            );
+        }
+        // A leaf whose parent is not inferable from its name: catches a
+        // manifest that only ever echoed the subcategory back at itself.
+        assert!(manifest.contains("Subcategory:Dolls=43@Minifigs=6\n"));
+    }
+
+    /// Reference vectors for FNV-1a 64 (empty input and "a").
+    #[test]
+    fn fnv1a_64_matches_reference_vectors() {
+        assert_eq!(fnv1a_64(std::iter::empty()), 0xcbf2_9ce4_8422_2325);
+        assert_eq!(fnv1a_64(b"a".iter().copied()), 0xaf63_dc4c_8601_ec8c);
+    }
+
+    /// Pin of the whole encoding at once. If this fails you changed a
+    /// persisted value: see `PINNED_TAXONOMY_FINGERPRINT` for what that
+    /// obliges you to do before updating the constant.
+    #[test]
+    fn taxonomy_fingerprint_is_pinned() {
+        let fingerprint = taxonomy_fingerprint();
+        assert_eq!(fingerprint.len(), 16);
+        assert!(
+            fingerprint
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        );
+        assert_eq!(fingerprint, PINNED_TAXONOMY_FINGERPRINT);
     }
 }

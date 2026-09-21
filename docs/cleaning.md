@@ -38,14 +38,28 @@ is an anomaly: logged and skipped, never guessed.
 LEGO/BrickLink display names; folds every other name string Rebrickable
 knows (across systems and history) into a deduplicated, sorted `aliases`
 bag for search. `data/rebrickable/color_excludes.ron` removes colors that
-must not surface. Output is the compiled-in
-`crates/catalog-builder/src/core/color_names.ron`; at build time
-`src/build/inventory.rs` uses it to translate Rebrickable color ids to
-LDraw codes, `src/build/xref.rs` writes it out as the `colors` table, and
-`src/build.rs` copies the compiled-in bytes verbatim to a `color_names.ron`
-sidecar next to `catalog.sqlite` — published and pinned with the release,
-so a consumer that compiles the reference in (Blockstar, blockstar#143)
-can vendor exactly the file the catalog was built with.
+must not surface. Output is `data/derived/color_names.ron`, compiled into
+the builder via `include_str!`; at build time `src/build/inventory.rs` uses
+it to translate Rebrickable color ids to LDraw codes, and `src/build/xref.rs`
+writes it out as the `colors` table.
+
+That file is a **published artifact**, reaching consumers two ways. Blockstar
+vendors it into `blockstar-core` with `just vendor-color-names`
+(blockstar#143) — which is why it sits under `data/derived/` rather than
+inside the builder crate — and `src/build.rs` copies the same compiled-in
+bytes verbatim to a `color_names.ron` sidecar next to `catalog.sqlite`,
+published and pinned with the release. The sidecar is the stronger of the
+two: it is pinned by url + sha256 + exact size alongside the DB, so a
+consumer fetches exactly the reference the catalog was built with instead of
+resolving a branch name.
+
+Rows drop out for two different reasons, so three counts are worth
+keeping apart. Of the 275 rows in the Rebrickable listing, 169 carry an
+LDraw external id; the other 106 have no LDraw equivalent at all and are
+skipped. `color_excludes.ron` then removes two of those 169 — the `-1`
+"[Unknown]" sentinel, and `1081` ("Rust Orange"), which claims LDraw code
+216 already held by `216` ("Rust") — leaving the **167 rows** in the
+published artifact.
 
 ## Inventory cleaning
 

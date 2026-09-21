@@ -9,6 +9,7 @@
 
 use brickdata::pin::{AssetFingerprint, RebrickablePin};
 use brickdata_catalog_builder::core::blob::unpack_u32_le;
+use brickdata_catalog_builder::core::categories;
 use brickdata_catalog_builder::core::colors::{self, ColorRefEntry};
 use brickdata_catalog_builder::core::{Category, PartCatalog};
 use brickdata_catalog_builder::{build, util};
@@ -225,7 +226,7 @@ fn build_creates_db_with_meta_rows() {
     );
 
     let meta = read_meta(&out);
-    assert_eq!(meta.get("schema_version").map(String::as_str), Some("3"));
+    assert_eq!(meta.get("schema_version").map(String::as_str), Some("4"));
     assert_eq!(
         meta.get("snapshot_date").map(String::as_str),
         Some("2026-05-27")
@@ -239,6 +240,22 @@ fn build_creates_db_with_meta_rows() {
         meta.get("builder_version").map(String::as_str),
         Some(env!("CARGO_PKG_VERSION"))
     );
+
+    // #19: classifier ran, thresholds + per-type counts recorded.
+    assert_eq!(
+        meta.get("set_class_distinct_ceiling").map(String::as_str),
+        Some("14")
+    );
+    assert!(
+        meta.contains_key("set_type_build_count"),
+        "per-type set counts should be stamped"
+    );
+    // The fixture has real inventories, so at least one build must exist.
+    let builds: i64 = meta
+        .get("set_type_build_count")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    assert!(builds > 0, "fixture should yield at least one build set");
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -265,6 +282,15 @@ fn build_emits_part_frequency_sidecar_next_to_the_db() {
 
     let text = std::fs::read_to_string(&sidecar).unwrap();
     assert!(text.contains("PartFrequency("), "{text}");
+    // #19: the sidecar now reports builds, not raw sets.
+    assert!(
+        text.contains("builds:"),
+        "sidecar should carry build counts:\n{text}"
+    );
+    assert!(
+        text.contains("build_qty:"),
+        "sidecar should carry build quantities"
+    );
     // Provenance mirrors the DB's own meta table.
     assert!(
         text.contains("generated_from: \"rebrickable-2026-05-27\","),
@@ -276,12 +302,35 @@ fn build_emits_part_frequency_sidecar_next_to_the_db() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
-/// The `color_names.ron` sidecar is the builder's compiled-in color reference
-/// copied out byte-for-byte (the blockstar#143 handoff): equal to the vendored
-/// file in this crate, and the same rows the DB's `colors` table was written
-/// from.
+/// The build stamps the taxonomy fingerprint (blockstar#138) so a reader
+/// can refuse a catalog whose category ids were encoded with a different
+/// `categories.rs` than its own.
 #[test]
-fn build_emits_color_names_sidecar_identical_to_the_vendored_file() {
+fn build_stamps_taxonomy_fingerprint() {
+    let root = temp_root("taxonomy-fingerprint");
+    let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
+    let crossrefs = write_crossrefs(&root);
+    let out = root.join("catalog.sqlite");
+
+    build::run_with(&pin, &csv_dir, &crossrefs, &fixture_ldraw_dir(), &out)
+        .expect("build should succeed against a matching cache");
+
+    let meta = read_meta(&out);
+    let stamped = meta
+        .get(categories::TAXONOMY_FINGERPRINT_META_KEY)
+        .map(String::as_str);
+    assert_eq!(stamped, Some(categories::taxonomy_fingerprint().as_str()));
+    assert_eq!(stamped, Some(categories::PINNED_TAXONOMY_FINGERPRINT));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// The `color_names.ron` sidecar is the builder's compiled-in color reference
+/// copied out byte-for-byte (the blockstar#143 handoff): equal to the published
+/// artifact at `data/derived/color_names.ron`, and the same rows the DB's
+/// `colors` table was written from.
+#[test]
+fn build_emits_color_names_sidecar_identical_to_the_published_artifact() {
     let root = temp_root("colors-sidecar");
     let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
     let crossrefs = write_crossrefs(&root);
@@ -301,11 +350,12 @@ fn build_emits_color_names_sidecar_identical_to_the_vendored_file() {
     );
 
     let sidecar_bytes = std::fs::read(&sidecar).unwrap();
-    let vendored = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/core/color_names.ron");
+    let published =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/derived/color_names.ron");
     assert_eq!(
         sidecar_bytes,
-        std::fs::read(&vendored).unwrap(),
-        "the sidecar must be the vendored color_names.ron byte-for-byte"
+        std::fs::read(&published).unwrap(),
+        "the sidecar must be data/derived/color_names.ron byte-for-byte"
     );
     assert_eq!(sidecar_bytes, colors::COLOR_NAMES_RON.as_bytes());
 

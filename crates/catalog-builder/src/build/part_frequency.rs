@@ -1,21 +1,23 @@
 //! Project per-part usage figures into `part_frequency.ron`.
 //!
-//! A sidecar to `catalog.sqlite`: for every part that appears in a set, two
-//! measures — the number of **distinct sets** containing it (`sets`) and the
-//! **total quantity** of the part across those sets (`qty`) — each as an
-//! all-time total plus a **per-calendar-year** breakdown over a recent window.
-//! Consumers pick their own "recent" window by summing a prefix of the year
-//! list, and choose whichever measure suits their purpose.
+//! A sidecar to `catalog.sqlite`: for every part that appears in a **build**
+//! (a set classified `build` in `rb_sets.set_type`), two measures — the number
+//! of **distinct builds** containing it (`builds`) and the **total quantity**
+//! of the part across those builds (`build_qty`) — each as an all-time total
+//! plus a **per-calendar-year** breakdown over a recent window. Consumers pick
+//! their own "recent" window by summing a prefix of the year list, and choose
+//! whichever measure suits their purpose.
 //!
 //! Emitted as a lightweight RON so consumers that only need per-part usage
-//! figures need not open the full catalog. The window is anchored on
-//! `MAX(year)` in the data, not wall-clock, so the projection is a pure
+//! figures need not open the full catalog. The window is anchored on the newest
+//! build `year` in the data, not wall-clock, so the projection is a pure
 //! function of the pinned input.
 //!
 //! These are catalog-structural counts (how the set catalog is built), not
-//! sales-weighted demand. Distinguishing genuine builds from parts packs /
-//! baseplates / merchandise, and any weighted popularity metrics, are tracked
-//! separately (brickdata#17, brickdata#19).
+//! sales-weighted demand. Non-build sets — parts packs, baseplates,
+//! merchandise, and sets with no catalogued inventory — are excluded via
+//! `set_classify` (brickdata#19); weighted popularity metrics remain future
+//! work (brickdata#17).
 
 use std::collections::BTreeMap;
 
@@ -35,11 +37,12 @@ pub(crate) struct Series {
     pub by_year: Vec<u32>,
 }
 
-/// Per-part usage figures: how many distinct sets contain the part (`sets`) and
-/// the total quantity of the part across those sets (`qty`).
+/// Per-part usage figures over **builds only** (sets classified `build`): how
+/// many distinct builds contain the part (`builds`) and the total quantity of
+/// the part across those builds (`build_qty`).
 pub(crate) struct PartFreq {
-    pub sets: Series,
-    pub qty: Series,
+    pub builds: Series,
+    pub build_qty: Series,
 }
 
 /// The whole projection: the covered years (most-recent first) and one
@@ -49,17 +52,21 @@ pub(crate) struct Aggregation {
     pub parts: BTreeMap<String, PartFreq>,
 }
 
-/// Aggregate `rb_part_color_set` into per-part, per-year set counts and
-/// quantities.
+/// Aggregate `rb_part_color_set` (builds only) into per-part, per-year build
+/// counts and quantities.
 pub(crate) fn aggregate(conn: &Connection) -> Result<Aggregation> {
     // All-time figures per part, independent of year — so a part appearing only
-    // in undated or out-of-window sets is still represented. `qty` sums across
-    // colors and sets; `sets` counts distinct sets regardless of color.
+    // in undated or out-of-window builds is still represented. `build_qty` sums
+    // across colors and builds; `builds` counts distinct builds regardless of
+    // color.
     let mut parts: BTreeMap<String, PartFreq> = BTreeMap::new();
     {
         let mut stmt = conn.prepare(
-            "SELECT design_id, COUNT(DISTINCT set_id), SUM(qty) \
-             FROM rb_part_color_set GROUP BY design_id",
+            "SELECT pcs.design_id, COUNT(DISTINCT pcs.set_id), SUM(pcs.qty) \
+             FROM rb_part_color_set pcs \
+             JOIN rb_sets s ON s.set_id = pcs.set_id \
+             WHERE s.set_type = 'build' \
+             GROUP BY pcs.design_id",
         )?;
         let rows = stmt.query_map([], |r| {
             Ok((
@@ -73,11 +80,11 @@ pub(crate) fn aggregate(conn: &Connection) -> Result<Aggregation> {
             parts.insert(
                 design,
                 PartFreq {
-                    sets: Series {
+                    builds: Series {
                         all_time: n_sets as u32,
                         by_year: Vec::new(),
                     },
-                    qty: Series {
+                    build_qty: Series {
                         all_time: n_qty as u32,
                         by_year: Vec::new(),
                     },
@@ -86,28 +93,33 @@ pub(crate) fn aggregate(conn: &Connection) -> Result<Aggregation> {
         }
     }
 
-    // Window anchored on the newest set year present, not wall-clock, so the
+    // Window anchored on the newest build year present, not wall-clock, so the
     // projection is reproducible from the pinned input.
-    let anchor: Option<i64> =
-        conn.query_row("SELECT MAX(year) FROM rb_part_color_set", [], |r| r.get(0))?;
+    let anchor: Option<i64> = conn.query_row(
+        "SELECT MAX(pcs.year) FROM rb_part_color_set pcs \
+         JOIN rb_sets s ON s.set_id = pcs.set_id WHERE s.set_type = 'build'",
+        [],
+        |r| r.get(0),
+    )?;
     let years: Vec<i64> = match anchor {
         Some(a) => (0..=WINDOW_YEARS_BACK).map(|back| a - back).collect(),
         None => Vec::new(),
     };
     let year_index: BTreeMap<i64, usize> = years.iter().enumerate().map(|(i, &y)| (y, i)).collect();
     for part in parts.values_mut() {
-        part.sets.by_year = vec![0; years.len()];
-        part.qty.by_year = vec![0; years.len()];
+        part.builds.by_year = vec![0; years.len()];
+        part.build_qty.by_year = vec![0; years.len()];
     }
 
     // Fill the in-window buckets. `BETWEEN` excludes NULL years, so undated
     // rows contribute to the all-time totals above but never to a year bucket.
     if let (Some(&newest), Some(&oldest)) = (years.first(), years.last()) {
         let mut stmt = conn.prepare(
-            "SELECT design_id, year, COUNT(DISTINCT set_id), SUM(qty) \
-             FROM rb_part_color_set \
-             WHERE year BETWEEN ?1 AND ?2 \
-             GROUP BY design_id, year",
+            "SELECT pcs.design_id, pcs.year, COUNT(DISTINCT pcs.set_id), SUM(pcs.qty) \
+             FROM rb_part_color_set pcs \
+             JOIN rb_sets s ON s.set_id = pcs.set_id \
+             WHERE s.set_type = 'build' AND pcs.year BETWEEN ?1 AND ?2 \
+             GROUP BY pcs.design_id, pcs.year",
         )?;
         let rows = stmt.query_map((oldest, newest), |r| {
             Ok((
@@ -120,8 +132,8 @@ pub(crate) fn aggregate(conn: &Connection) -> Result<Aggregation> {
         for row in rows {
             let (design, year, n_sets, n_qty) = row?;
             if let (Some(part), Some(&idx)) = (parts.get_mut(&design), year_index.get(&year)) {
-                part.sets.by_year[idx] = n_sets as u32;
-                part.qty.by_year[idx] = n_qty as u32;
+                part.builds.by_year[idx] = n_sets as u32;
+                part.build_qty.by_year[idx] = n_qty as u32;
             }
         }
     }
@@ -130,24 +142,26 @@ pub(crate) fn aggregate(conn: &Connection) -> Result<Aggregation> {
 }
 
 const HEADER: &str = "\
-// Per-part usage figures.
+// Per-part usage figures over builds.
 //
 // GENERATED by the catalog `build` from rb_part_color_set — do not edit by hand.
-// For each part: `sets` is the number of distinct sets that contain it; `qty`
-// is the total quantity of the part across those sets. Each has an `all_time`
-// total and a `by_year` breakdown, positionally aligned to `years` (most-recent
-// first). Pick a window by summing a prefix of by_year; older-than-window usage
-// is `all_time - sum(by_year)`.
+// For each part: `builds` is the number of distinct BUILDS that contain it;
+// `build_qty` is the total quantity of the part across those builds. Each has an
+// `all_time` total and a `by_year` breakdown, positionally aligned to `years`
+// (most-recent first). Pick a window by summing a prefix of by_year; older-than-
+// window usage is `all_time - sum(by_year)`.
 //
-// These are catalog-structural counts, not sales-weighted demand, and include
-// every catalogued set (parts packs, baseplates, etc.). The window is anchored
-// on the newest set year in the data, so this file is a pure function of the
-// pinned catalog. See bkfunk/brickdata#17.
+// A build is a set classified `build` in rb_sets.set_type (brickdata#19):
+// parts packs, baseplates, merchandise, and sets with no catalogued inventory
+// are excluded. Classifier: distinct-mold ceiling 14, concentration 15. The
+// window is anchored on the newest build year in the data, so this file is a
+// pure function of the pinned catalog. See bkfunk/brickdata#17, #19.
 ";
 
 /// Render the aggregation as `part_frequency.ron`: a header, provenance, the
-/// covered `years`, then one key-sorted `"design_id": (sets: (…), qty: (…))`
-/// line per part. Hand-rolled for a tight, deterministic, reviewable diff —
+/// covered `years`, then one key-sorted
+/// `"design_id": (builds: (…), build_qty: (…))` line per part. Hand-rolled for
+/// a tight, deterministic, reviewable diff —
 /// same rationale as `part_crossrefs.ron` / `color_names.ron`.
 pub(crate) fn render(snapshot: &str, snapshot_date: &str, agg: &Aggregation) -> String {
     let mut out = String::new();
@@ -162,10 +176,10 @@ pub(crate) fn render(snapshot: &str, snapshot_date: &str, agg: &Aggregation) -> 
     out.push_str("    parts: {\n");
     for (design, freq) in &agg.parts {
         out.push_str(&format!(
-            "        {}: (sets: {}, qty: {}),\n",
+            "        {}: (builds: {}, build_qty: {}),\n",
             ron_quote(design),
-            render_series(&freq.sets),
-            render_series(&freq.qty),
+            render_series(&freq.builds),
+            render_series(&freq.build_qty),
         ));
     }
     out.push_str("    },\n");
@@ -225,6 +239,8 @@ mod tests {
                  qty INTEGER NOT NULL, qty_spare INTEGER NOT NULL, year INTEGER,
                  PRIMARY KEY (design_id, color_id, set_id)
              ) WITHOUT ROWID;
+             CREATE TABLE rb_sets (set_id INTEGER PRIMARY KEY, set_type TEXT NOT NULL);
+             INSERT INTO rb_sets VALUES (1, 'build'), (2, 'build'), (3, 'build'), (4, 'build');
              INSERT INTO rb_part_color_set VALUES
                  -- A: set 1 in two colors (one distinct set) + set 2, both in-window
                  ('A', 0, 1, 4, 0, 2026),
@@ -255,18 +271,36 @@ mod tests {
         // A: set 1 counts once despite two color rows; set 2 in 2025.
         // Quantity sums across colors: set 1 = 4 + 2 = 6 (2026), set 2 = 1 (2025).
         let a = &agg.parts["A"];
-        assert_eq!(a.sets.all_time, 2);
-        assert_eq!(a.sets.by_year, vec![1, 1, 0, 0, 0, 0]); // 2026, 2025, then zeros
-        assert_eq!(a.qty.all_time, 7);
-        assert_eq!(a.qty.by_year, vec![6, 1, 0, 0, 0, 0]);
+        assert_eq!(a.builds.all_time, 2);
+        assert_eq!(a.builds.by_year, vec![1, 1, 0, 0, 0, 0]); // 2026, 2025, then zeros
+        assert_eq!(a.build_qty.all_time, 7);
+        assert_eq!(a.build_qty.by_year, vec![6, 1, 0, 0, 0, 0]);
 
         // B: both sets and their quantities are all-time, but neither lands in a
         // window bucket — 2020 is older than the window, NULL has no year.
         let b = &agg.parts["B"];
-        assert_eq!(b.sets.all_time, 2);
-        assert_eq!(b.sets.by_year, vec![0, 0, 0, 0, 0, 0]);
-        assert_eq!(b.qty.all_time, 2);
-        assert_eq!(b.qty.by_year, vec![0, 0, 0, 0, 0, 0]);
+        assert_eq!(b.builds.all_time, 2);
+        assert_eq!(b.builds.by_year, vec![0, 0, 0, 0, 0, 0]);
+        assert_eq!(b.build_qty.all_time, 2);
+        assert_eq!(b.build_qty.by_year, vec![0, 0, 0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn non_build_sets_are_excluded_from_the_aggregation() {
+        let conn = Connection::open_in_memory().unwrap();
+        seed(&conn);
+        // Reclassify set 2 (A's 2025 appearance) as a parts pack.
+        conn.execute(
+            "UPDATE rb_sets SET set_type = 'parts_pack' WHERE set_id = 2",
+            [],
+        )
+        .unwrap();
+        let agg = aggregate(&conn).unwrap();
+        // A now appears only in build set 1 (2026); its 2025 build count is gone.
+        let a = &agg.parts["A"];
+        assert_eq!(a.builds.all_time, 1);
+        assert_eq!(a.builds.by_year, vec![1, 0, 0, 0, 0, 0]);
+        assert_eq!(a.build_qty.all_time, 6); // set 1 only: 4 + 2
     }
 
     #[test]
@@ -277,11 +311,11 @@ mod tests {
                 (
                     "B".to_string(),
                     PartFreq {
-                        sets: Series {
+                        builds: Series {
                             all_time: 2,
                             by_year: vec![0, 0, 0, 0, 0, 0],
                         },
-                        qty: Series {
+                        build_qty: Series {
                             all_time: 2,
                             by_year: vec![0, 0, 0, 0, 0, 0],
                         },
@@ -290,11 +324,11 @@ mod tests {
                 (
                     "A".to_string(),
                     PartFreq {
-                        sets: Series {
+                        builds: Series {
                             all_time: 2,
                             by_year: vec![1, 1, 0, 0, 0, 0],
                         },
-                        qty: Series {
+                        build_qty: Series {
                             all_time: 7,
                             by_year: vec![6, 1, 0, 0, 0, 0],
                         },
@@ -317,15 +351,15 @@ mod tests {
         // both the set-count and quantity series.
         assert!(
             out.contains(
-                "\"A\": (sets: (all_time: 2, by_year: [1, 1, 0, 0, 0, 0]), \
-                 qty: (all_time: 7, by_year: [6, 1, 0, 0, 0, 0])),"
+                "\"A\": (builds: (all_time: 2, by_year: [1, 1, 0, 0, 0, 0]), \
+                 build_qty: (all_time: 7, by_year: [6, 1, 0, 0, 0, 0])),"
             ),
             "{out}"
         );
         assert!(
             out.contains(
-                "\"B\": (sets: (all_time: 2, by_year: [0, 0, 0, 0, 0, 0]), \
-                 qty: (all_time: 2, by_year: [0, 0, 0, 0, 0, 0])),"
+                "\"B\": (builds: (all_time: 2, by_year: [0, 0, 0, 0, 0, 0]), \
+                 build_qty: (all_time: 2, by_year: [0, 0, 0, 0, 0, 0])),"
             ),
             "{out}"
         );
@@ -340,8 +374,8 @@ mod tests {
         }
         #[derive(serde::Deserialize)]
         struct ParsedRow {
-            sets: ParsedSeries,
-            qty: ParsedSeries,
+            builds: ParsedSeries,
+            build_qty: ParsedSeries,
         }
         // Named to match the `PartFrequency(...)` wrapper — RON checks the
         // struct name, so a consumer names its deserialize target the same.
@@ -356,10 +390,10 @@ mod tests {
         assert_eq!(doc.generated_from, "rebrickable-2026-06-01");
         assert_eq!(doc.snapshot_date, "2026-06-01");
         assert_eq!(doc.years, vec![2026, 2025, 2024, 2023, 2022, 2021]);
-        assert_eq!(doc.parts["A"].sets.all_time, 2);
-        assert_eq!(doc.parts["A"].sets.by_year, vec![1, 1, 0, 0, 0, 0]);
-        assert_eq!(doc.parts["A"].qty.all_time, 7);
-        assert_eq!(doc.parts["A"].qty.by_year, vec![6, 1, 0, 0, 0, 0]);
+        assert_eq!(doc.parts["A"].builds.all_time, 2);
+        assert_eq!(doc.parts["A"].builds.by_year, vec![1, 1, 0, 0, 0, 0]);
+        assert_eq!(doc.parts["A"].build_qty.all_time, 7);
+        assert_eq!(doc.parts["A"].build_qty.by_year, vec![6, 1, 0, 0, 0, 0]);
     }
 
     #[test]
@@ -385,8 +419,8 @@ mod tests {
             "{text}"
         );
         assert!(text.contains(
-            "\"A\": (sets: (all_time: 2, by_year: [1, 1, 0, 0, 0, 0]), \
-             qty: (all_time: 7, by_year: [6, 1, 0, 0, 0, 0])),"
+            "\"A\": (builds: (all_time: 2, by_year: [1, 1, 0, 0, 0, 0]), \
+             build_qty: (all_time: 7, by_year: [6, 1, 0, 0, 0, 0])),"
         ));
     }
 }

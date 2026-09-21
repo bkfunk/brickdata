@@ -33,6 +33,7 @@ use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::core::categories;
 use crate::core::colors;
 use crate::ldraw_part;
 use crate::refresh_parts::RbCrossRefPin;
@@ -50,13 +51,15 @@ mod rb_parts;
 mod rb_sets;
 mod rb_themes;
 mod resolve;
+mod set_classify;
 mod xref;
 
 /// Bumped whenever the on-disk schema changes in a way the runtime must
 /// notice. Stamped into `meta` so a mismatched DB is detectable at load.
 /// v2 (#12): `colors` + `rb_part_external_id` tables. v3: resolved
-/// `design_id` column on `rb_parts` (the part_num → LDraw spine).
-const SCHEMA_VERSION: u32 = 3;
+/// `design_id` column on `rb_parts` (the part_num → LDraw spine). v4 (#19):
+/// `distinct_part_count` + `set_type` columns on `rb_sets`.
+const SCHEMA_VERSION: u32 = 4;
 
 /// The Rebrickable tables a snapshot pin carries (as `<name>.csv.gz`).
 /// `colors.csv` is deliberately absent — color names come from the committed
@@ -223,6 +226,14 @@ fn build_into(
     stamp(&conn, "ldraw_part_count", &scan.parts.to_string())?;
     stamp(&conn, "ldraw_moved_to_count", &scan.moved_to.to_string())?;
     stamp(&conn, "ldraw_alias_count", &scan.aliases.to_string())?;
+    // The taxonomy those rows' category_id / subcategory_id were encoded
+    // with (blockstar#138): a reader compares this to the fingerprint of its
+    // own categories.rs before trusting the ids.
+    stamp(
+        &conn,
+        categories::TAXONOMY_FINGERPRINT_META_KEY,
+        &categories::taxonomy_fingerprint(),
+    )?;
 
     ingest_rebrickable_tables(&conn, csv_dir)?;
 
@@ -245,8 +256,26 @@ fn build_into(
     // Assign dense set ids, then aggregate the ~1M-row inventory_parts CSV
     // into the per-part fact + summary tables.
     rb_sets::add_set_ids(&conn)?;
-    let inv = inventory::build(&conn, csv_dir, &resolver)?;
+    let (inv, set_counts) = inventory::build(&conn, csv_dir, &resolver)?;
     stamp_all(&conn, &inv.meta_rows())?;
+
+    // Classify every set (#19): build vs parts_pack / baseplate / merchandise /
+    // unknown, stored on rb_sets. Runs after inventory (needs the true per-set
+    // molds) and after rb_sets + set_ids exist. Only builds feed the frequency
+    // sidecar; the thresholds/policy are stamped for reproducibility.
+    let cls = set_classify::build(&conn, &set_counts)?;
+    stamp_all(&conn, &cls.meta_rows())?;
+    stamp(
+        &conn,
+        "set_class_distinct_ceiling",
+        &set_classify::DISTINCT_CEILING.to_string(),
+    )?;
+    stamp(
+        &conn,
+        "set_class_concentration",
+        &set_classify::CONCENTRATION.to_string(),
+    )?;
+    stamp(&conn, "part_frequency_included_set_types", "build")?;
 
     // Part↔part relationships, filtered to rows touching the catalog (#82).
     let rels = rb_part_relationships::build(&conn, csv_dir, &resolver)?;

@@ -115,11 +115,14 @@ impl ColorReference {
     }
 }
 
-/// The committed color reference, exactly as compiled into this binary.
-/// The single `include_str!` of the file: [`color_reference`] parses it, and
-/// the catalog `build` writes these same bytes out as the `color_names.ron`
-/// sidecar, so the two can never diverge.
-pub const COLOR_NAMES_RON: &str = include_str!("color_names.ron");
+/// The published color reference at `data/derived/color_names.ron`, exactly
+/// as compiled into this binary. The single `include_str!` of that file:
+/// [`color_reference`] parses it, and the catalog `build` writes these same
+/// bytes out as the `color_names.ron` sidecar, so the two can never diverge.
+pub const COLOR_NAMES_RON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../data/derived/color_names.ron"
+));
 
 /// Get the static color reference, parsed lazily from the bundled RON file.
 pub fn color_reference() -> &'static ColorReference {
@@ -149,5 +152,26 @@ mod tests {
         assert_eq!(red.names.lego.as_deref(), Some("Bright red"));
         assert_eq!(red.names.bricklink.as_deref(), Some("Red"));
         assert_eq!(red.names.rebrickable.as_deref(), Some("Red"));
+    }
+
+    /// `data/derived/color_names.ron` is a published artifact: Blockstar's
+    /// `just vendor-color-names` fetches this exact path and compiles the
+    /// result into `blockstar-core` (blockstar#143).
+    ///
+    /// `include_str!` above already fails the build if the file disappears,
+    /// but it would happily follow the file to a new location if someone
+    /// updated the include and nothing else. This test names the path
+    /// independently, so moving the artifact fails here with an explanation
+    /// rather than silently breaking a consumer in another repo.
+    #[test]
+    fn published_artifact_stays_at_its_documented_path() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/derived/color_names.ron");
+        assert!(
+            path.is_file(),
+            "data/derived/color_names.ron is missing. It is a published \
+             artifact consumed by Blockstar (blockstar#143); if you moved it, \
+             update Blockstar's vendor recipe and this test together."
+        );
     }
 }
