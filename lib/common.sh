@@ -38,6 +38,24 @@ download() {
         || die "download failed: $url"
 }
 
+# download_verified <url> <dest> <sha256> [bytes] — download, then check the
+# sha256 (and, when given, the exact byte size) against what a pin records.
+# The shell twin of the Rust Fetcher's mandatory verification: a mismatch is
+# fatal, never a warning.
+download_verified() {
+    local url="$1" dest="$2" want_sum="$3" want_bytes="${4:-}"
+    local got_sum got_bytes
+    download "$url" "$dest"
+    got_sum="$(sha256_file "$dest")"
+    [ "$got_sum" = "$want_sum" ] \
+        || die "$(basename "$url"): sha256 mismatch: got $got_sum, pin says $want_sum"
+    if [ -n "$want_bytes" ]; then
+        got_bytes="$(wc -c < "$dest" | tr -d ' ')"
+        [ "$got_bytes" = "$want_bytes" ] \
+            || die "$(basename "$url"): size mismatch: got $got_bytes bytes, pin says $want_bytes"
+    fi
+}
+
 # require_gzip <path> — reject an HTML error page masquerading as a .gz.
 # Rebrickable's CDN returns 200 + HTML on some failures; the gzip magic
 # bytes (1f 8b) are the reliable signal. Mirrors the Rust fetch.rs guard.

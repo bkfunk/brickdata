@@ -9,7 +9,8 @@
 //! - **[`pin`]** — parsing the `pins/*.ron` fingerprint records
 //! - **[`fetch`]** — downloading assets with mandatory sha256/size
 //!   verification and a local content-addressed cache (a verified cache hit
-//!   does no network I/O)
+//!   does no network I/O), including a catalog release's pinned sidecars
+//!   (`part_frequency.ron`, `color_names.ron`)
 //! - **[`extract`]** — gunzip/unzip helpers for the release asset encodings
 //!
 //! # Example

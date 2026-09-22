@@ -39,12 +39,20 @@ LEGO/BrickLink display names; folds every other name string Rebrickable
 knows (across systems and history) into a deduplicated, sorted `aliases`
 bag for search. `data/rebrickable/color_excludes.ron` removes colors that
 must not surface. Output is `data/derived/color_names.ron`, compiled into
-the builder via `include_str!`; at build time `src/build/inventory.rs`
-uses it to translate Rebrickable color ids to LDraw codes.
+the builder via `include_str!`; at build time `src/build/inventory.rs` uses
+it to translate Rebrickable color ids to LDraw codes, and `src/build/xref.rs`
+writes it out as the `colors` table.
 
-That file is also a **published artifact**: Blockstar vendors it into
-`blockstar-core` with `just vendor-color-names` (blockstar#143), which is
-why it sits under `data/derived/` rather than inside the builder crate.
+That file is a **published artifact**, reaching consumers two ways. Blockstar
+vendors it into `blockstar-core` with `just vendor-color-names`
+(blockstar#143) — which is why it sits under `data/derived/` rather than
+inside the builder crate — and `src/build.rs` copies the same compiled-in
+bytes verbatim to a `color_names.ron` sidecar next to `catalog.sqlite`,
+published and pinned with the release. The sidecar is the stronger of the
+two: it is pinned by url + sha256 + exact size alongside the DB, so a
+consumer fetches exactly the reference the catalog was built with instead of
+resolving a branch name.
+
 Rows drop out for two different reasons, so three counts are worth
 keeping apart. Of the 275 rows in the Rebrickable listing, 169 carry an
 LDraw external id; the other 106 have no LDraw equivalent at all and are
@@ -93,10 +101,12 @@ those with external ids), same ladder, NULL when unresolvable.
 
 ## Determinism
 
-Identical pins produce byte-identical `catalog.sqlite` (integration test
-`build_is_deterministic`). The build stages
+Identical pins produce byte-identical `catalog.sqlite` and byte-identical
+`part_frequency.ron` / `color_names.ron` sidecars (integration test
+`build_is_deterministic` hashes all three). The build stages
 into `<out>.tmp`, fsyncs, and atomically renames, so a failed build never
 leaves a half-written DB; `build_status = 'complete'` is the very last
-`meta` write. Inputs are fetched through a sha256-verified
-content-addressed cache (`brickdata::Fetcher`), so the bytes are the
-pin's or the build fails.
+`meta` write. The sidecars are written the same way (temp sibling +
+fsync + rename) after the DB is in place. Inputs are fetched through a
+sha256-verified content-addressed cache (`brickdata::Fetcher`), so the
+bytes are the pin's or the build fails.

@@ -2,12 +2,15 @@
 //! `meta` rows (#69), the snapshot-verify gate fails loudly (#69), the
 //! `ldraw_part` table is populated from the fixture library (#70), the small
 //! Rebrickable tables are raw-ingested with empty-field-as-NULL (#71),
-//! `inventory_parts` aggregates into the fact + summary tables (#72), and
-//! `part_relationships` ingests catalog-filtered (#82).
+//! `inventory_parts` aggregates into the fact + summary tables (#72),
+//! `part_relationships` ingests catalog-filtered (#82), and the
+//! `part_frequency.ron` / `color_names.ron` sidecars land next to the DB
+//! (#17, blockstar#143).
 
 use brickdata::pin::{AssetFingerprint, RebrickablePin};
 use brickdata_catalog_builder::core::blob::unpack_u32_le;
 use brickdata_catalog_builder::core::categories;
+use brickdata_catalog_builder::core::colors::{self, ColorRefEntry};
 use brickdata_catalog_builder::core::{Category, PartCatalog};
 use brickdata_catalog_builder::{build, util};
 use rusqlite::Connection;
@@ -318,6 +321,53 @@ fn build_stamps_taxonomy_fingerprint() {
         .map(String::as_str);
     assert_eq!(stamped, Some(categories::taxonomy_fingerprint().as_str()));
     assert_eq!(stamped, Some(categories::PINNED_TAXONOMY_FINGERPRINT));
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// The `color_names.ron` sidecar is the builder's compiled-in color reference
+/// copied out byte-for-byte (the blockstar#143 handoff): equal to the published
+/// artifact at `data/derived/color_names.ron`, and the same rows the DB's
+/// `colors` table was written from.
+#[test]
+fn build_emits_color_names_sidecar_identical_to_the_published_artifact() {
+    let root = temp_root("colors-sidecar");
+    let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
+    let crossrefs = write_crossrefs(&root);
+    let out = root.join("catalog.sqlite");
+
+    build::run_with(&pin, &csv_dir, &crossrefs, &fixture_ldraw_dir(), &out)
+        .expect("build should succeed");
+
+    let sidecar = root.join("color_names.ron");
+    assert!(
+        sidecar.exists(),
+        "color_names.ron should be written next to catalog.sqlite"
+    );
+    assert!(
+        !root.join("color_names.ron.tmp").exists(),
+        "the .tmp staging sidecar should have been renamed away"
+    );
+
+    let sidecar_bytes = std::fs::read(&sidecar).unwrap();
+    let published =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/derived/color_names.ron");
+    assert_eq!(
+        sidecar_bytes,
+        std::fs::read(&published).unwrap(),
+        "the sidecar must be data/derived/color_names.ron byte-for-byte"
+    );
+    assert_eq!(sidecar_bytes, colors::COLOR_NAMES_RON.as_bytes());
+
+    // It parses as the color reference, and carries exactly the rows the
+    // build wrote into the `colors` table from the same compiled-in text.
+    let entries: Vec<ColorRefEntry> = ron::from_str(std::str::from_utf8(&sidecar_bytes).unwrap())
+        .expect("sidecar should parse as the color reference");
+    let conn = Connection::open(&out).unwrap();
+    let color_rows: i64 = conn
+        .query_row("SELECT count(*) FROM colors", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(entries.len() as i64, color_rows);
 
     let _ = std::fs::remove_dir_all(&root);
 }
@@ -995,18 +1045,24 @@ fn build_is_deterministic() {
     let (pin, csv_dir) = fake_pin_and_csv_dir(&root);
     let crossrefs = write_crossrefs(&root);
 
-    let build_to = |name: &str| -> String {
+    // Hash the DB and both sidecars. The sidecars land next to `out` under
+    // their fixed names, so read them before the next build overwrites them.
+    let build_to = |name: &str| -> [String; 3] {
         let out = root.join(name);
         build::run_with(&pin, &csv_dir, &crossrefs, &fixture_ldraw_dir(), &out)
             .expect("build should succeed");
-        util::hash_bytes(&std::fs::read(&out).unwrap())
+        [
+            util::hash_file(&out).unwrap(),
+            util::hash_file(&root.join("part_frequency.ron")).unwrap(),
+            util::hash_file(&root.join("color_names.ron")).unwrap(),
+        ]
     };
 
     let first = build_to("catalog-a.sqlite");
     let second = build_to("catalog-b.sqlite");
     assert_eq!(
         first, second,
-        "two builds from the same pins must be byte-identical"
+        "two builds from the same pins must be byte-identical (DB and sidecars)"
     );
 
     let _ = std::fs::remove_dir_all(&root);
