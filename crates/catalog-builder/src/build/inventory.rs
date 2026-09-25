@@ -45,7 +45,7 @@
 //! conflates true spares, unused extras, and alternate-config parts). Genuine
 //! spares — a part already in main, with extra copies — keep their `qty_spare`.
 //! Targeted exceptions to this blanket rule belong to the manual-corrections
-//! layer (#103).
+//! layer (#29, moved from blockstar#103).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
