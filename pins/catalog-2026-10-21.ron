@@ -1,0 +1,11 @@
+// brickdata built-catalog pin.
+(
+  mirror_tag: "catalog-2026-10-21",
+  asset_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-10-21/catalog.sqlite",
+  sha256: "ff884cc9c92739561dac77d6fda045a1866549a11b388f815a29b61c07ecf334",
+  bytes: 88592384,
+  sidecars: {
+    "part_frequency.ron": (sha256: "89bc4beb3f08e0033d0e388de55e4b19cf65ace17d6ac4688874325fb2091f8a", bytes: 1379860, mirror_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-10-21/part_frequency.ron"),
+    "color_names.ron": (sha256: "78ffb42c6a2daf76618f7dc8c2036c911418844c32b62c84d2f58974e3020fb2", bytes: 31738, mirror_url: "https://github.com/bkfunk/brickdata/releases/download/catalog-2026-10-21/color_names.ron"),
+  },
+)
