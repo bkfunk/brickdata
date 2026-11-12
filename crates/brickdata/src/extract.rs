@@ -81,7 +81,9 @@ pub fn unzip_to(
 
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i).map_err(zip_err)?;
-        let rel = sanitize_entry_path(entry.name())?;
+        // Since zip 9, `name()` decodes the stored bytes and can fail; an
+        // undecodable name is reported as a bad archive.
+        let rel = sanitize_entry_path(&entry.name().map_err(zip_err)?)?;
         let out_path = dest_dir.join(rel);
         if entry.is_dir() {
             fs::create_dir_all(&out_path).map_err(io_err(&out_path))?;
